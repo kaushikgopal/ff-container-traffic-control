@@ -23,3 +23,9 @@ To run an example extension:
 # for macOS
 brew install web-ext
 ```
+
+## License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for details.
+
+For attribution notices and copyright information, see the [NOTICE](NOTICE) file.
