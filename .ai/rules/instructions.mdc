@@ -1,0 +1,57 @@
+---
+description: AI master instructions
+globs:
+alwaysApply: true
+---
+
+# AI Instructions
+This file provides guidance to AI coding agents like Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+Container Traffic Control is a Firefox extension that helps define rules controlling which container a website opens in. It leverages Firefox's Multi-Account Containers and Contextual Identities API.
+
+## Development Commands
+
+### Loading the Extension for Development
+```bash
+# Method 1: Install web-ext (recommended)
+brew install web-ext
+# OR: npm install -g web-ext
+
+# Method 2: Run extension with hot reload
+cd src/
+web-ext run
+```
+
+### Manual Testing
+- Navigate to `about:debugging` in Firefox
+- Click "This Firefox" → "Load Temporary Add-on"
+- Select `src/manifest.json`
+
+### Debugging
+- Go to `about:debugging` → Find extension → Click "Inspect"
+- Console logs from background script appear in DevTools
+- Extension storage viewable via DevTools → Storage tab
+- Or programmatically: `browser.storage.local.get()`
+
+## Architecture
+
+### Core Components
+- **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage
+- **background.js**: Main extension logic (currently minimal boilerplate)
+- **options.html**: Settings UI (placeholder implementation)
+
+### Key Firefox APIs Used
+- `browser.contextualIdentities.*` - Container management
+- `browser.tabs.create({cookieStoreId})` - Open tabs in specific containers
+- `browser.webRequest.*` - Intercept and modify web requests
+- `browser.storage.local.*` - Persist extension settings
+
+### Extension Structure
+This is a Manifest v3 Firefox extension with:
+- Background script for core logic
+- Options page for user configuration
+- Host permissions for all URLs
+- Gecko-specific ID: `ctc@kau.sh`
+
+The extension is currently in early development phase with basic boilerplate structure in place.
