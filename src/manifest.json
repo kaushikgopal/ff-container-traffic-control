@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "Container Traffic Control",
+    "description": "Control which container a website will open up in based on a set of rules.",
+    "version": "0.0.1",
+    "author": "Kaushik Gopal (https://kau.sh)",
+    "icons": {},
+    "permissions": [
+      "webRequest",
+      "webRequestBlocking",
+      "tabs",
+      "cookies",
+      "contextualIdentities",
+      "storage"
+    ],
+    "host_permissions": [
+      "<all_urls>"
+    ],
+    "optional_host_permissions": [
+      "<all_urls>"
+    ],
+    "background": {
+      "scripts": ["background.js"]
+    },
+    "options_ui": {
+      "page": "options.html",
+      "open_in_tab": false
+    },
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "ctc@kau.sh"
+      }
+    }
+  }

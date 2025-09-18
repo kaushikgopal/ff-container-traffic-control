@@ -14,15 +14,69 @@ Install the official extension from [addons.mozilla.org](https://addons.mozilla.
 
 # Development
 
-To run an example extension:
+## Quick Start
 
-1. Open Firefox and load the about:debugging page. Click [Load Temporary Add-on](https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Temporary_Installation_in_Firefox) and select the `manifest.json` file within the folder of an example extension.
-2. Install the [web-ext](https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Getting_started_with_web-ext) tool. At the command line, open the example extension's folder and type web-ext run. This launches Firefox and installs the extension automatically. This tool provides some additional development features, such as [automatic reloading](https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Getting_started_with_web-ext#Automatic_extension_reloading).
+1. Clone this repository
+2. Load the extension in Firefox using one of the methods below
+3. The extension will log "Container Traffic Control add-on loaded" to the console
 
-```
-# for macOS
-brew install web-ext
-```
+## Loading the Extension
+
+### Method 1: Temporary Installation (Quick Testing)
+1. Open Firefox
+2. Navigate to `about:debugging`
+3. Click "This Firefox" in the left sidebar
+4. Click "Load Temporary Add-on"
+5. Navigate to the `src/` folder and select `manifest.json`
+6. Extension loads immediately (removed on Firefox restart)
+
+### Method 2: Using web-ext (Recommended for Development)
+1. Install web-ext:
+   ```bash
+   # macOS
+   brew install web-ext
+
+   # Alternative via npm
+   npm install -g web-ext
+   ```
+
+2. Run from the `src/` directory:
+   ```bash
+   cd src/
+   web-ext run
+   ```
+   This launches Firefox with auto-installation and hot reloading.
+
+## Debugging
+
+### Console Logs
+1. Go to `about:debugging`
+2. Find "Container Traffic Control" and click "Inspect"
+3. Open Console tab to see background script logs
+
+### Extension Storage
+- Use Firefox DevTools → Storage tab to inspect extension data
+- Or programmatically: `browser.storage.local.get()`
+
+### Common Issues
+- **Permission errors**: Check `manifest.json` permissions match your API usage
+- **Console not showing logs**: Ensure you're inspecting the background script, not content script
+- **Extension not loading**: Verify `manifest.json` syntax and required fields
+
+## Development Workflow
+
+1. Make changes to source files
+2. If using `web-ext run`: Changes auto-reload
+3. If using temporary installation: Go to `about:debugging` → Reload extension
+4. Check console for errors
+5. Test functionality
+
+## Testing Container APIs
+
+The extension has access to Firefox's Contextual Identities API:
+- `browser.contextualIdentities.query()` - List containers
+- `browser.contextualIdentities.create()` - Create containers
+- `browser.tabs.create({cookieStoreId})` - Open tab in specific container
 
 ## License
 
