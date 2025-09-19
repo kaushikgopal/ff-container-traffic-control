@@ -3,9 +3,50 @@
 <head>
     <meta charset="utf-8">
     <title>Container Traffic Control Options</title>
+    <link rel="stylesheet" href="options.css">
 </head>
 <body>
-    <h1>Container Traffic Control</h1>
-    <p>Options page placeholder - functionality to be implemented.</p>
+    <div class="container">
+        <h1>Container Traffic Control</h1>
+        <p>Define rules to control which container websites open in.</p>
+
+        <div class="rules-section">
+            <h2>Rules</h2>
+            <div class="validation-messages" id="validationMessages"></div>
+
+            <table id="rulesTable" class="rules-table">
+                <thead>
+                    <tr>
+                        <th>Container</th>
+                        <th>Action</th>
+                        <th>URL Pattern</th>
+                        <th>High Priority</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rulesTableBody">
+                </tbody>
+            </table>
+
+            <div class="button-group">
+                <button id="addRuleBtn" class="btn btn-secondary">Add Rule</button>
+                <button id="saveRulesBtn" class="btn btn-primary">Save Rules</button>
+            </div>
+        </div>
+
+        <div class="help-section">
+            <h3>Help</h3>
+            <ul>
+                <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing.</li>
+                <li><strong>Allow:</strong> URL can open in this container (non-exclusive).</li>
+                <li><strong>Allow Only:</strong> URL MUST open ONLY in this container (exclusive).</li>
+                <li><strong>URL Pattern:</strong> Regex pattern to match URLs (e.g., "mail.google.com", ".*\\.google\\.com").</li>
+                <li><strong>High Priority:</strong> Rules with high priority take precedence over others.</li>
+                <li><strong>Invalid Rule:</strong> "Allow Only" + "*" pattern is forbidden as it blocks all navigation.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="options.js"></script>
 </body>
 </html>
