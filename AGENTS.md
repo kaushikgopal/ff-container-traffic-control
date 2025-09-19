@@ -7,11 +7,10 @@ Container Traffic Control is a Firefox extension that helps define rules control
 
 ### Loading the Extension for Development
 ```bash
-# Method 1: Install web-ext (recommended)
+# Install web-ext (recommended)
 brew install web-ext
-# OR: npm install -g web-ext
 
-# Method 2: Run extension with hot reload
+# Run extension with hot reload
 cd src/
 web-ext run
 ```
@@ -27,12 +26,47 @@ web-ext run
 - Extension storage viewable via DevTools → Storage tab
 - Or programmatically: `browser.storage.local.get()`
 
+### Code Validation
+```bash
+# Check JavaScript syntax (no build process required - pure extension)
+# Manual testing via web-ext is the primary validation method
+web-ext lint src/
+```
+
 ## Architecture
 
 ### Core Components
 - **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage
-- **background.js**: Main extension logic (currently minimal boilerplate)
-- **options.html**: Settings UI (placeholder implementation)
+- **background.js**: Main extension logic for handling web requests and container routing
+- **options.html/js/css**: Complete settings UI with rule management table interface
+
+### Options Page Architecture
+The options page uses a class-based approach (`ContainerTrafficControlOptions`) with these key patterns:
+- Container loading via `browser.contextualIdentities.query()`
+- Rule storage in `browser.storage.local` with key `'rules'`
+- Table-based UI with dynamic row creation/deletion
+- Real-time validation for regex patterns and rule conflicts
+- Rules structure: `{containerName, action, urlPattern, highPriority}`
+
+### Rule Validation Logic
+- **Invalid combination**: "Allow Only" action + "*" pattern (blocks all navigation)
+- **Pattern validation**: All URL patterns must be valid regex
+- **Priority conflicts**: Multiple high priority rules for same pattern generate warnings
+
+### Storage Schema
+```javascript
+// browser.storage.local structure
+{
+  "rules": [
+    {
+      "containerName": "Personal", // Container name or "No Container"
+      "action": "allow|allow_only", // Rule enforcement type
+      "urlPattern": ".*\\.google\\.com", // Regex pattern
+      "highPriority": true // Boolean for rule precedence
+    }
+  ]
+}
+```
 
 ### Key Firefox APIs Used
 - `browser.contextualIdentities.*` - Container management
@@ -47,4 +81,6 @@ This is a Manifest v3 Firefox extension with:
 - Host permissions for all URLs
 - Gecko-specific ID: `ctc@kau.sh`
 
-The extension is currently in early development phase with basic boilerplate structure in place.
+### Development Phases
+- **Phase 1** (Complete): Rule input, validation, and storage via options page
+- **Phase 2** (Planned): Background script implementation for actual URL routing and container enforcement
