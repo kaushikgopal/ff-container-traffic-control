@@ -5,7 +5,6 @@
 let rules = [];
 let containerMap = new Map(); // containerName -> cookieStoreId
 let cookieStoreToNameMap = new Map(); // cookieStoreId -> containerName
-const DEBUG = true;
 
 // Event listeners
 browser.webRequest.onBeforeRequest.addListener(
@@ -16,18 +15,18 @@ browser.webRequest.onBeforeRequest.addListener(
 
 browser.storage.onChanged.addListener((changes) => {
     if (changes.ctcRules) {
-        ctcLog('rules were updated, reloading rules...');
+        ctcConsole.log('rules were updated, reloading rules...');
         loadRules();
     }
 });
 
 browser.contextualIdentities.onCreated.addListener(() => {
-    ctcLog('container was created, reloading containers...');
+    ctcConsole.log('container was created, reloading containers...');
     loadContainers();
 });
 
 browser.contextualIdentities.onRemoved.addListener(() => {
-    ctcLog('container was removed, reloading containers...');
+    ctcConsole.log('container was removed, reloading containers...');
     loadContainers();
 });
 
@@ -38,7 +37,7 @@ initialize();
 async function initialize() {
     await loadContainers();
     await loadRules();
-    ctcLog('info', 'initialized with ', rules.length, 'rules & ', containerMap.size, ' containers');
+    ctcConsole.info('initialized with', rules.length, 'rules &', containerMap.size, 'containers');
 }
 
 async function loadContainers() {
@@ -56,9 +55,9 @@ async function loadContainers() {
             cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
         });
 
-        ctcLog('loaded containers:', Array.from(containerMap.entries()));
+        ctcConsole.debug('loaded containers:', Array.from(containerMap.entries()));
     } catch (error) {
-         ctcLog('error','[CTC] Failed to load containers:', error);
+        ctcConsole.error('Failed to load containers:', error);
     }
 }
 
@@ -67,9 +66,9 @@ async function loadRules() {
     try {
         const storage = await browser.storage.local.get('ctcRules');
         rules = storage.ctcRules || [];
-        ctcLog('loaded rules:', rules);
+        ctcConsole.debug('loaded rules:', rules);
     } catch (error) {
-         ctcLog('error','[CTC] Failed to load rules:', error);
+        ctcConsole.error('Failed to load rules:', error);
     }
 }
 
@@ -78,7 +77,7 @@ async function handleRequest(details) {
     try {
         // Skip privileged URLs
         if (isPrivilegedURL(details.url)) {
-            ctcLog('Skipping privileged URL:', details.url);
+            ctcConsole.debug('Skipping privileged URL:', details.url);
             return {};
         }
 
@@ -90,7 +89,7 @@ async function handleRequest(details) {
 
         // Switch if needed
         if (currentCookieStoreId !== targetCookieStoreId) {
-            ctcLog(`Redirecting from ${cookieStoreToNameMap.get(currentCookieStoreId)} to ${cookieStoreToNameMap.get(targetCookieStoreId)}`);
+            ctcConsole.info(`Redirecting from ${cookieStoreToNameMap.get(currentCookieStoreId)} to ${cookieStoreToNameMap.get(targetCookieStoreId)}`);
 
             // Create new tab in target container
             browser.tabs.create({
@@ -110,7 +109,7 @@ async function handleRequest(details) {
 
         return {};
     } catch (error) {
-         ctcLog('error','[CTC] Error handling request:', error);
+        ctcConsole.error('Error handling request:', error);
         return {};
     }
 }
@@ -131,7 +130,7 @@ async function getCurrentContainer(tabId) {
         const tab = await browser.tabs.get(tabId);
         return tab.cookieStoreId || 'firefox-default';
     } catch (error) {
-        ctcLog('Failed to get tab info:', error);
+        ctcConsole.error('Failed to get tab info:', error);
         return 'firefox-default';
     }
 }
@@ -141,7 +140,8 @@ function evaluateContainer(url, currentCookieStoreId) {
     // 1. Get current container name
     let targetContainer = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
 
-    ctcLog(`Evaluating URL: ${url}, Current: ${targetContainer}`);
+    ctcConsole.groupCollapsed(`Evaluating URL: ${url}`);
+    ctcConsole.debug('Current container:', targetContainer);
 
     // 2. Check if we need to boot from restricted container
     if (targetContainer !== 'No Container') {
@@ -151,7 +151,7 @@ function evaluateContainer(url, currentCookieStoreId) {
         if (hasAllowOnlyRules) {
             const matchesAnyRule = containerRules.some(rule => matchesPattern(url, rule.urlPattern));
             if (!matchesAnyRule) {
-                ctcLog(`Booting from restricted container: ${targetContainer}`);
+                ctcConsole.debug(`Booting from restricted container: ${targetContainer}`);
                 targetContainer = null; // Must leave this container
             }
         }
@@ -169,11 +169,12 @@ function evaluateContainer(url, currentCookieStoreId) {
         }
     });
 
-    ctcLog(`Allowed containers:`, allowedContainers);
+    ctcConsole.debug('Allowed containers:', allowedContainers);
 
     // 4. Select final container
     if (targetContainer && allowedContainers.some(c => c.name === targetContainer)) {
-        ctcLog(`Staying in current container: ${targetContainer}`);
+        ctcConsole.debug(`Staying in current container: ${targetContainer}`);
+        ctcConsole.groupEnd();
         return containerMap.get(targetContainer);
     }
 
@@ -183,7 +184,8 @@ function evaluateContainer(url, currentCookieStoreId) {
         // Sort by rule index (first rule wins)
         highPriorityContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
         const selected = highPriorityContainers[0].name;
-        ctcLog(`Selected high priority container: ${selected}`);
+        ctcConsole.debug(`Selected high priority container: ${selected}`);
+        ctcConsole.groupEnd();
         return containerMap.get(selected);
     }
 
@@ -191,12 +193,14 @@ function evaluateContainer(url, currentCookieStoreId) {
     if (allowedContainers.length > 0) {
         allowedContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
         const selected = allowedContainers[0].name;
-        ctcLog(`Selected first allowed container: ${selected}`);
+        ctcConsole.debug(`Selected first allowed container: ${selected}`);
+        ctcConsole.groupEnd();
         return containerMap.get(selected);
     }
 
     // Default to no container
-    ctcLog('No matching rules, using No Container');
+    ctcConsole.debug('No matching rules, using No Container');
+    ctcConsole.groupEnd();
     return 'firefox-default';
 }
 
@@ -206,18 +210,7 @@ function matchesPattern(url, pattern) {
         const regex = new RegExp(pattern);
         return regex.test(url);
     } catch (error) {
-         ctcLog('error','[CTC] Invalid regex pattern:', pattern, error);
+        ctcConsole.error('Invalid regex pattern:', pattern, error);
         return false;
     }
-}
-
-function ctcLog(level = 'log', ...args) {
-    const validLevels = ['log', 'info', 'error', 'warn'];
-    const logLevel = validLevels.includes(level) ? level : 'log';
-    if (level !== 'log' && DEBUG) {
-        console.log('[CTC]', ...args);
-        return;
-    }
-
-    console[logLevel]('[CTC]', ...args);
 }

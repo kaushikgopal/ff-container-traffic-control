@@ -33,9 +33,9 @@ class ContainerTrafficControlOptions {
                 cookieStoreId: "firefox-default"
             });
 
-            console.log('CTC: Loaded containers:', this.containers);
+            ctcConsole.info('Loaded containers:', this.containers);
         } catch (error) {
-            console.error('CTC: Failed to load containers:', error);
+            ctcConsole.error('Failed to load containers:', error);
             this.showValidationMessage('Failed to load containers. Please reload the extension.', 'error');
         }
     }
@@ -46,7 +46,7 @@ class ContainerTrafficControlOptions {
             const storage = await browser.storage.local.get('ctcRules');
             this.rules = storage.ctcRules || [];
 
-            console.log('CTC: Loaded rules from storage:', this.rules);
+            ctcConsole.info('Loaded rules from storage:', this.rules);
 
             // Display existing rules in the table
             this.rules.forEach(rule => this.addRuleRow(rule));
@@ -56,7 +56,7 @@ class ContainerTrafficControlOptions {
                 this.addRuleRow();
             }
         } catch (error) {
-            console.error('CTC: Failed to load rules:', error);
+            ctcConsole.error('Failed to load rules:', error);
             this.showValidationMessage('Failed to load saved rules.', 'error');
         }
     }
@@ -405,14 +405,14 @@ class ContainerTrafficControlOptions {
             if (errors.length > 0) {
                 const errorMessage = 'Validation errors:\n' + errors.join('\n');
                 this.showValidationMessage(errorMessage, 'error');
-                console.error('CTC: Validation errors:', errors);
+                ctcConsole.error('Validation errors:', errors);
                 return;
             }
 
             // Show warnings but allow saving
             if (warnings.length > 0) {
                 warnings.forEach(warning => {
-                    console.warn('CTC:', warning);
+                    ctcConsole.warn(warning);
                 });
                 this.showValidationMessage(`Saved with warnings. Check console for details.`, 'warning');
             }
@@ -422,12 +422,13 @@ class ContainerTrafficControlOptions {
             this.rules = rules;
 
             // Show success message
-            const successMessage = `CTC: ${rules.length} rules saved successfully`;
-            console.log(successMessage);
+            const successMessage = `${rules.length} rules saved successfully`;
+            ctcConsole.info(successMessage);
             this.showValidationMessage(`${rules.length} rules saved successfully.`, 'success');
 
             // Debug output: show rules in console table format
-            console.table(rules.map((rule, index) => ({
+            ctcConsole.info('Saved rules:');
+            ctcConsole.table(rules.map((rule, index) => ({
                 '#': index + 1,
                 Container: rule.containerName,
                 Action: rule.action === 'allow' ? 'Allow' : 'Allow Only',
@@ -436,7 +437,7 @@ class ContainerTrafficControlOptions {
             })));
 
         } catch (error) {
-            console.error('CTC: Failed to save rules:', error);
+            ctcConsole.error('Failed to save rules:', error);
             this.showValidationMessage('Failed to save rules. Please try again.', 'error');
         }
     }
