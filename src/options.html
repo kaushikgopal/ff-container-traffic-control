@@ -36,14 +36,43 @@
 
         <div class="help-section">
             <h3>Help</h3>
-            <ul>
-                <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing.</li>
-                <li><strong>Allow:</strong> URL can open in this container (non-exclusive).</li>
-                <li><strong>Allow Only:</strong> URL MUST open ONLY in this container (exclusive).</li>
-                <li><strong>URL Pattern:</strong> Regex pattern to match URLs (e.g., "mail.google.com", ".*\\.google\\.com").</li>
-                <li><strong>High Priority:</strong> Rules with high priority take precedence over others.</li>
-                <li><strong>Invalid Rule:</strong> "Allow Only" + "*" pattern is forbidden as it blocks all navigation.</li>
-            </ul>
+            <div class="help-subsection">
+                <h4>How Container Traffic Control Works:</h4>
+                <ol>
+                    <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
+                    <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
+                    <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
+                    <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
+                </ol>
+            </div>
+
+            <div class="help-subsection">
+                <h4>Rule Types:</h4>
+                <ul>
+                    <li><strong>Allow:</strong> Container accepts this URL plus any others (open container)</li>
+                    <li><strong>Allow Only:</strong> Container ONLY accepts these URLs (restricted container)</li>
+                    <li><strong>⚠️ Important:</strong> A container cannot mix "Allow" and "Allow Only" rules</li>
+                </ul>
+            </div>
+
+            <div class="help-subsection">
+                <h4>Settings:</h4>
+                <ul>
+                    <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing</li>
+                    <li><strong>URL Pattern:</strong> Regex pattern to match URLs (e.g., "mail.google.com", ".*\\.google\\.com")</li>
+                    <li><strong>High Priority:</strong> When multiple containers match a URL, high-priority rules are chosen first</li>
+                    <li><strong>⚠️ Privacy Tip:</strong> Avoid wildcard patterns like ".*" - use specific patterns when possible</li>
+                </ul>
+            </div>
+
+            <div class="help-subsection">
+                <h4>Examples:</h4>
+                <ul>
+                    <li><strong>Work Container (Allow Only):</strong> ".*\\.company\\.com" - Only work sites allowed</li>
+                    <li><strong>Social Container (Allow):</strong> ".*\\.(facebook|twitter)\\.com" - Social sites preferred but others allowed</li>
+                    <li><strong>Shopping Container (Allow):</strong> ".*\\.(amazon|ebay)\\.com" - Shopping sites preferred</li>
+                </ul>
+            </div>
         </div>
     </div>
 

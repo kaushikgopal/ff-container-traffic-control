@@ -247,7 +247,25 @@ input[type="checkbox"] {
     padding: 20px;
 }
 
-.help-section ul {
+.help-subsection {
+    margin-bottom: 25px;
+}
+
+.help-subsection:last-child {
+    margin-bottom: 0;
+}
+
+.help-subsection h4 {
+    color: #2c3e50;
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 8px;
+}
+
+.help-section ul,
+.help-section ol {
     margin: 0;
     padding-left: 20px;
 }
@@ -255,6 +273,7 @@ input[type="checkbox"] {
 .help-section li {
     margin-bottom: 8px;
     color: #495057;
+    line-height: 1.4;
 }
 
 .help-section strong {

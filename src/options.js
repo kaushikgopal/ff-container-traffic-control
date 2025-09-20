@@ -43,8 +43,8 @@ class ContainerTrafficControlOptions {
     async loadRules() {
         try {
             // Load existing rules from storage
-            const storage = await browser.storage.local.get('rules');
-            this.rules = storage.rules || [];
+            const storage = await browser.storage.local.get('ctcRules');
+            this.rules = storage.ctcRules || [];
 
             console.log('CTC: Loaded rules from storage:', this.rules);
 
@@ -324,11 +324,37 @@ class ContainerTrafficControlOptions {
         const errors = [];
         const warnings = [];
 
+        // Check that containers don't mix allow and allow-only rules
+        const containerRules = {};
+        rules.forEach((rule, index) => {
+            if (!containerRules[rule.containerName]) {
+                containerRules[rule.containerName] = { allow: 0, allowOnly: 0, ruleNumbers: [] };
+            }
+            if (rule.action === 'allow') {
+                containerRules[rule.containerName].allow++;
+            } else if (rule.action === 'allow_only') {
+                containerRules[rule.containerName].allowOnly++;
+            }
+            containerRules[rule.containerName].ruleNumbers.push(index + 1);
+        });
+
+        // Validate container rule consistency
+        for (const [container, counts] of Object.entries(containerRules)) {
+            if (counts.allow > 0 && counts.allowOnly > 0) {
+                errors.push(`Container "${container}" cannot mix 'allow' and 'allow-only' rules. All rules for a container must be the same type.`);
+            }
+        }
+
         // Check each rule for validation issues
         rules.forEach((rule, index) => {
             // Check for invalid "Allow Only" + "*" combination
             if (rule.action === 'allow_only' && rule.urlPattern === '*') {
                 errors.push(`Rule ${index + 1}: "Allow Only" with "*" pattern blocks all navigation`);
+            }
+
+            // Warn about wildcard patterns
+            if (rule.urlPattern === '.*') {
+                warnings.push(`Rule ${index + 1}: Wildcard pattern '.*' reduces privacy - use specific patterns when possible`);
             }
 
             // Validate regex pattern
@@ -392,7 +418,7 @@ class ContainerTrafficControlOptions {
             }
 
             // Save rules to storage
-            await browser.storage.local.set({ rules });
+            await browser.storage.local.set({ ctcRules: rules });
             this.rules = rules;
 
             // Show success message
