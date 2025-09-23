@@ -34,7 +34,9 @@
     "browser_specific_settings": {
       "gecko": {
         "id": "ctc@kau.sh",
-        "data_collection_permissions": false
+        "data_collection_permissions": {
+          "required": ["none"]
+        }
       }
     }
   }
