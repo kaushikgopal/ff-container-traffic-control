@@ -1,0 +1,6 @@
+- ask ai to rethink how the plugin works
+- the debug logs are noisy - only add essential ones
+- README + UI
+   - explain clearly how the rules work
+   - provide link to support/issues
+   - mention the browser.storage.sync
