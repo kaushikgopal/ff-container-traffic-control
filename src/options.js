@@ -60,13 +60,30 @@ class ContainerTrafficControlOptions {
         // Create delete button
         const deleteButton = this.createDeleteButton(row);
 
-        row.innerHTML = `
-            <td>${containerSelect.outerHTML}</td>
-            <td>${actionSelect.outerHTML}</td>
-            <td>${urlPatternInput.outerHTML}</td>
-            <td class="text-center">${priorityCheckbox.outerHTML}</td>
-            <td class="text-center">${deleteButton.outerHTML}</td>
-        `;
+        // Create table cells and append elements safely
+        const containerCell = document.createElement('td');
+        containerCell.appendChild(containerSelect);
+
+        const actionCell = document.createElement('td');
+        actionCell.appendChild(actionSelect);
+
+        const urlPatternCell = document.createElement('td');
+        urlPatternCell.appendChild(urlPatternInput);
+
+        const priorityCell = document.createElement('td');
+        priorityCell.className = 'text-center';
+        priorityCell.appendChild(priorityCheckbox);
+
+        const deleteCell = document.createElement('td');
+        deleteCell.className = 'text-center';
+        deleteCell.appendChild(deleteButton);
+
+        // Append all cells to the row
+        row.appendChild(containerCell);
+        row.appendChild(actionCell);
+        row.appendChild(urlPatternCell);
+        row.appendChild(priorityCell);
+        row.appendChild(deleteCell);
 
         this.rulesTableBody.appendChild(row);
 
