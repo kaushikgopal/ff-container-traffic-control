@@ -58,7 +58,10 @@ test('Pattern Matching - Regex patterns', () => {
 // Test 2: No rules scenario (your current issue)
 test('No Rules - Should stay in current container', () => {
     const rules = [];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'Personal', rules, containerMap);
     assertEqual(result, 'Personal', 'Should stay in current container when no rules exist');
@@ -66,7 +69,10 @@ test('No Rules - Should stay in current container', () => {
 
 test('No Rules - Should default to No Container when starting fresh', () => {
     const rules = [];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'No Container', rules, containerMap);
     assertEqual(result, 'No Container', 'Should stay in No Container when no rules exist');
@@ -77,7 +83,10 @@ test('Rules Exist But No Match - Should stay in current container', () => {
         createRule('Work', 'open', 'company.com'),
         createRule('Personal', 'open', 'facebook.com')
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'Personal', rules, containerMap);
     assertEqual(result, 'Personal', 'Should stay in current container when rules exist but none match');
@@ -88,7 +97,10 @@ test('Open Rules - Stay in current container', () => {
     const rules = [
         createRule('Personal', 'open', 'github.com')
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com/user/repo', 'Personal', rules, containerMap);
     assertEqual(result, 'Personal', 'Should stay in Personal container');
@@ -98,7 +110,10 @@ test('Open Rules - Switch to matching container', () => {
     const rules = [
         createRule('Work', 'open', 'github.com')
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com/user/repo', 'No Container', rules, containerMap);
     assertEqual(result, 'Work', 'Should switch to Work container');
@@ -109,7 +124,10 @@ test('Restricted Rules - Boot from restricted container', () => {
     const rules = [
         createRule('Work', 'restricted', 'company.com')
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'Work', rules, containerMap);
     assertEqual(result, 'No Container', 'Should be booted from restricted container');
@@ -119,7 +137,10 @@ test('Restricted Rules - Stay in restricted container for matching URL', () => {
     const rules = [
         createRule('Work', 'restricted', 'company.com')
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://company.com/login', 'Work', rules, containerMap);
     assertEqual(result, 'Work', 'Should stay in restricted container for matching URL');
@@ -131,7 +152,10 @@ test('High Priority Rules - Should win over normal priority', () => {
         createRule('Personal', 'open', 'github.com', false), // Normal priority
         createRule('Work', 'open', 'github.com', true)      // High priority
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'No Container', rules, containerMap);
     assertEqual(result, 'Work', 'High priority rule should win');
@@ -143,7 +167,10 @@ test('Rule Order - First rule wins when same priority', () => {
         createRule('Personal', 'open', 'github.com', true), // First high priority
         createRule('Work', 'open', 'github.com', true)     // Second high priority
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     const result = evaluateContainerForUrl('https://github.com', 'No Container', rules, containerMap);
     assertEqual(result, 'Personal', 'First rule should win when same priority');
@@ -155,7 +182,10 @@ test('HTTP Redirect - Boot from restricted container on redirect destination', (
         createRule('Personal', 'restricted', 'www.google.com'),  // Allow Google redirect URLs
         createRule('Personal', 'restricted', 'mail.google.com') // Allow Gmail
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     // First: Google redirect URL is allowed in Personal container
     const redirectResult = evaluateContainerForUrl('https://www.google.com/url?q=https://addons.mozilla.org/', 'Personal', rules, containerMap);
@@ -170,7 +200,10 @@ test('HTTP Redirect - Open rule should not boot from container', () => {
     const rules = [
         createRule('Personal', 'open', 'github.com')  // Regular open rule (not restricted)
     ];
-    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
 
     // Should stay in Personal even for non-matching URLs (open rules are not restrictive)
     const result = evaluateContainerForUrl('https://addons.mozilla.org/', 'Personal', rules, containerMap);
