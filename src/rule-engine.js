@@ -94,9 +94,9 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
         return selected;
     }
 
-    // Default to no container
-    console.log('No matching rules, using No Container');
-    return 'No Container';
+    // Default to current container (stay put when no rules match)
+    console.log(`No matching rules, staying in current container: ${targetContainer || 'No Container'}`);
+    return targetContainer || 'No Container';
 }
 
 // Export for both browser and test environments

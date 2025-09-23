@@ -71,6 +71,17 @@ test('No Rules - Should default to No Container when starting fresh', () => {
     assertEqual(result, 'No Container', 'Should stay in No Container when no rules exist');
 });
 
+test('Rules Exist But No Match - Should stay in current container', () => {
+    const rules = [
+        createRule('Work', 'allow', 'company.com'),
+        createRule('Personal', 'allow', 'facebook.com')
+    ];
+    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+
+    const result = evaluateContainerForUrl('https://github.com', 'Personal', rules, containerMap);
+    assertEqual(result, 'Personal', 'Should stay in current container when rules exist but none match');
+});
+
 // Test 3: Allow rules
 test('Allow Rules - Stay in current container', () => {
     const rules = [
