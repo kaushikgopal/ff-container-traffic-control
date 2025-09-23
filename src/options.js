@@ -5,8 +5,7 @@ class ContainerTrafficControlOptions {
     constructor() {
         this.containers = [];
         this.rules = [];
-        this.allowRulesTableBody = document.getElementById('allowRulesTableBody');
-        this.allowOnlyRulesTableBody = document.getElementById('allowOnlyRulesTableBody');
+        this.rulesTableBody = document.getElementById('rulesTableBody');
         this.validationMessages = document.getElementById('validationMessages');
 
         this.initializeEventListeners();
@@ -14,8 +13,7 @@ class ContainerTrafficControlOptions {
     }
 
     initializeEventListeners() {
-        document.getElementById('addAllowRuleBtn').addEventListener('click', () => this.addRuleRow('allow'));
-        document.getElementById('addAllowOnlyRuleBtn').addEventListener('click', () => this.addRuleRow('allow_only'));
+        document.getElementById('addRuleBtn').addEventListener('click', () => this.addRuleRow());
         document.getElementById('saveRulesBtn').addEventListener('click', () => this.saveRules());
     }
 
@@ -29,11 +27,11 @@ class ContainerTrafficControlOptions {
                 ctcConsole.info('Options page initialized with:', this.containers.length, 'containers,', this.rules.length, 'rules');
 
                 // Display existing rules in the appropriate tables
-                this.rules.forEach(rule => this.addRuleRow(rule.action, rule));
+                this.rules.forEach(rule => this.addRuleRow(rule));
 
                 if (this.rules.length === 0) {
                     // Add one empty rule by default
-                    this.addRuleRow('allow');
+                    this.addRuleRow();
                 }
             },
             (error) => {
@@ -43,12 +41,12 @@ class ContainerTrafficControlOptions {
         );
     }
 
-    addRuleRow(action, existingRule = null) {
+    addRuleRow(existingRule = null) {
         const row = document.createElement('tr');
         row.className = 'rule-row';
 
-        // Store the action on the row for later retrieval
-        row.dataset.action = action;
+        // Create type selector
+        const typeSelect = this.createTypeSelect(existingRule?.action);
 
         // Create container dropdown
         const containerSelect = this.createContainerSelect(existingRule?.containerName);
@@ -63,6 +61,10 @@ class ContainerTrafficControlOptions {
         const deleteButton = this.createDeleteButton(row);
 
         // Create table cells and append elements safely
+        const typeCell = document.createElement('td');
+        typeCell.className = 'text-center';
+        typeCell.appendChild(typeSelect);
+
         const containerCell = document.createElement('td');
         containerCell.appendChild(containerSelect);
 
@@ -78,14 +80,14 @@ class ContainerTrafficControlOptions {
         deleteCell.appendChild(deleteButton);
 
         // Append all cells to the row
+        row.appendChild(typeCell);
         row.appendChild(containerCell);
         row.appendChild(urlPatternCell);
         row.appendChild(priorityCell);
         row.appendChild(deleteCell);
 
-        // Add to appropriate table
-        const tableBody = action === 'allow_only' ? this.allowOnlyRulesTableBody : this.allowRulesTableBody;
-        tableBody.appendChild(row);
+        // Add to single rules table
+        this.rulesTableBody.appendChild(row);
 
         // Re-attach event listeners
         this.attachRowEventListeners(row);
@@ -116,6 +118,32 @@ class ContainerTrafficControlOptions {
         return select;
     }
 
+    createTypeSelect(selectedType = 'allow') {
+        const select = document.createElement('select');
+        select.className = 'type-select';
+        select.required = true;
+
+        // Add options
+        const allowOption = document.createElement('option');
+        allowOption.value = 'allow';
+        allowOption.textContent = '🌐 Open';
+        allowOption.title = 'Container accepts these URLs plus any others';
+        if (selectedType === 'allow') {
+            allowOption.selected = true;
+        }
+        select.appendChild(allowOption);
+
+        const allowOnlyOption = document.createElement('option');
+        allowOnlyOption.value = 'allow_only';
+        allowOnlyOption.textContent = '🔒 Restricted';
+        allowOnlyOption.title = 'Container ONLY accepts these URLs';
+        if (selectedType === 'allow_only') {
+            allowOnlyOption.selected = true;
+        }
+        select.appendChild(allowOnlyOption);
+
+        return select;
+    }
 
     createUrlPatternInput(existingPattern = '') {
         const input = document.createElement('input');
@@ -156,7 +184,7 @@ class ContainerTrafficControlOptions {
 
     deleteRuleRow(row) {
         const tableBody = row.parentNode;
-        const totalRows = this.allowRulesTableBody.children.length + this.allowOnlyRulesTableBody.children.length;
+        const totalRows = this.rulesTableBody.children.length;
 
         if (totalRows > 1) {
             row.remove();
@@ -167,6 +195,7 @@ class ContainerTrafficControlOptions {
     }
 
     clearRow(row) {
+        row.querySelector('.type-select').value = 'allow';
         row.querySelector('.container-select').value = '';
         row.querySelector('.url-pattern-input').value = '';
         row.querySelector('.priority-checkbox').checked = false;
@@ -201,7 +230,7 @@ class ContainerTrafficControlOptions {
 
     validateRow(row) {
         const urlPatternInput = row.querySelector('.url-pattern-input');
-        const action = row.dataset.action;
+        const action = row.querySelector('.type-select').value;
         const pattern = urlPatternInput.value.trim();
 
         // Check for invalid "Allow Only" + "*" combination
@@ -275,38 +304,21 @@ class ContainerTrafficControlOptions {
     }
 
     collectRulesFromTable() {
-        const allowRows = this.allowRulesTableBody.querySelectorAll('.rule-row');
-        const allowOnlyRows = this.allowOnlyRulesTableBody.querySelectorAll('.rule-row');
+        const rows = this.rulesTableBody.querySelectorAll('.rule-row');
         const rules = [];
 
-        // Collect allow rules
-        allowRows.forEach(row => {
+        // Collect all rules from single table
+        rows.forEach(row => {
             const containerName = row.querySelector('.container-select').value.trim();
             const urlPattern = row.querySelector('.url-pattern-input').value.trim();
             const highPriority = row.querySelector('.priority-checkbox').checked;
+            const action = row.querySelector('.type-select').value;
 
             // Only include rules with all required fields
             if (containerName && urlPattern) {
                 rules.push({
                     containerName,
-                    action: 'allow',
-                    urlPattern,
-                    highPriority
-                });
-            }
-        });
-
-        // Collect allow only rules
-        allowOnlyRows.forEach(row => {
-            const containerName = row.querySelector('.container-select').value.trim();
-            const urlPattern = row.querySelector('.url-pattern-input').value.trim();
-            const highPriority = row.querySelector('.priority-checkbox').checked;
-
-            // Only include rules with all required fields
-            if (containerName && urlPattern) {
-                rules.push({
-                    containerName,
-                    action: 'allow_only',
+                    action,
                     urlPattern,
                     highPriority
                 });

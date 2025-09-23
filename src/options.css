@@ -48,6 +48,49 @@ p {
     margin-bottom: 30px;
 }
 
+/* Type column styles */
+.type-column {
+    width: 100px;
+    text-align: center;
+}
+
+.type-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: white;
+}
+
+/* Rule legend styles */
+.rule-legend {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.rule-legend p {
+    margin: 5px 0;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+.type-icon {
+    font-size: 16px;
+    margin-right: 8px;
+}
+
+.type-icon.restricted {
+    color: #e74c3c;
+}
+
+.type-icon.open {
+    color: #27ae60;
+}
+
 /* Rules Section */
 .rules-section {
     margin-bottom: 40px;
