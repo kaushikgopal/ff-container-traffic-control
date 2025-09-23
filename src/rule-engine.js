@@ -18,9 +18,9 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
     // 2. Check if we need to boot from restricted container
     if (targetContainer !== 'No Container') {
         const containerRules = rules.filter(rule => rule.containerName === targetContainer);
-        const hasAllowOnlyRules = containerRules.some(rule => rule.action === 'allow_only');
+        const hasRestrictedRules = containerRules.some(rule => rule.action === 'restricted');
 
-        if (hasAllowOnlyRules) {
+        if (hasRestrictedRules) {
             const matchesAnyRule = containerRules.some(rule => matchesPattern(url, rule.urlPattern));
             if (!matchesAnyRule) {
                 targetContainer = null; // Must leave this container
