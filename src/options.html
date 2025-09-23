@@ -59,18 +59,38 @@
                 <h4>Settings:</h4>
                 <ul>
                     <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing</li>
-                    <li><strong>URL Pattern:</strong> Regex pattern to match URLs (e.g., "mail.google.com", ".*\\.google\\.com")</li>
+                    <li><strong>URL Pattern:</strong>
+                        <ul>
+                            <li><strong>Simple:</strong> Just type the domain or URL part (e.g., "github.com", "mail.google.com")</li>
+                            <li><strong>Advanced:</strong> Use regex by wrapping in slashes (e.g., "/.*\\.google\\.com/", "/^https://github\\.com/")</li>
+                        </ul>
+                    </li>
                     <li><strong>High Priority:</strong> When multiple containers match a URL, high-priority rules are chosen first</li>
-                    <li><strong>⚠️ Privacy Tip:</strong> Avoid wildcard patterns like ".*" - use specific patterns when possible</li>
+                    <li><strong>⚠️ Privacy Tip:</strong> Use specific patterns when possible to maintain container isolation</li>
                 </ul>
             </div>
 
             <div class="help-subsection">
                 <h4>Examples:</h4>
                 <ul>
-                    <li><strong>Work Container (Allow Only):</strong> ".*\\.company\\.com" - Only work sites allowed</li>
-                    <li><strong>Social Container (Allow):</strong> ".*\\.(facebook|twitter)\\.com" - Social sites preferred but others allowed</li>
-                    <li><strong>Shopping Container (Allow):</strong> ".*\\.(amazon|ebay)\\.com" - Shopping sites preferred</li>
+                    <li><strong>Work Container (Allow Only):</strong>
+                        <ul>
+                            <li>Simple: "slack.company.com" - Company Slack only</li>
+                            <li>Advanced: "/.*\\.company\\.com/" - All company subdomains</li>
+                        </ul>
+                    </li>
+                    <li><strong>Social Container (Allow):</strong>
+                        <ul>
+                            <li>Simple: "facebook.com", "twitter.com" - Individual rules</li>
+                            <li>Advanced: "/.*\\.(facebook|twitter|instagram)\\.com/" - Multiple social sites</li>
+                        </ul>
+                    </li>
+                    <li><strong>Personal Container (Allow):</strong>
+                        <ul>
+                            <li>Simple: "github.com/myusername" - Personal GitHub repos</li>
+                            <li>Simple: "mail.google.com" - Personal Gmail</li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>

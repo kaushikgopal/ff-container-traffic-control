@@ -37,17 +37,27 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * URL pattern matching with error handling
+ * URL pattern matching with dual-mode support
  * @param {string} url - URL to test
- * @param {string} pattern - Regex pattern
+ * @param {string} pattern - Pattern (regex if enclosed in /.../, literal otherwise)
  * @returns {boolean} Whether URL matches pattern
  */
 function matchesPattern(url, pattern) {
+    if (!pattern) return false;
+
     try {
-        const regex = new RegExp(pattern);
-        return regex.test(url);
+        // Check if pattern is regex mode (enclosed in /.../)
+        if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) {
+            // Regex mode: strip slashes and use as regex
+            const regexPattern = pattern.slice(1, -1);
+            const regex = new RegExp(regexPattern);
+            return regex.test(url);
+        } else {
+            // Literal mode: simple contains match
+            return url.includes(pattern);
+        }
     } catch (error) {
-        ctcConsole.error('Invalid regex pattern:', pattern, error);
+        ctcConsole.error('Invalid pattern:', pattern, error);
         return false;
     }
 }

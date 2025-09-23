@@ -127,7 +127,7 @@ class ContainerTrafficControlOptions {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'url-pattern-input';
-        input.placeholder = 'Enter URL pattern (regex)';
+        input.placeholder = 'github.com or /regex/';
         input.value = existingPattern;
         input.required = true;
 
@@ -189,13 +189,21 @@ class ContainerTrafficControlOptions {
             return true;
         }
 
-        try {
-            new RegExp(pattern);
+        // Check if it's regex mode (enclosed in /.../)
+        if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) {
+            try {
+                const regexPattern = pattern.slice(1, -1);
+                new RegExp(regexPattern);
+                this.setInputValidation(input, 'valid', '');
+                return true;
+            } catch (error) {
+                this.setInputValidation(input, 'invalid', 'Invalid regex pattern');
+                return false;
+            }
+        } else {
+            // Literal mode - always valid as long as it's not empty
             this.setInputValidation(input, 'valid', '');
             return true;
-        } catch (error) {
-            this.setInputValidation(input, 'invalid', 'Invalid regex pattern');
-            return false;
         }
     }
 
