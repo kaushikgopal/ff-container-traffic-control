@@ -9,8 +9,7 @@ class ContainerTrafficControlOptions {
         this.validationMessages = document.getElementById('validationMessages');
 
         this.initializeEventListeners();
-        this.loadContainers();
-        this.loadRules();
+        this.initializeData();
     }
 
     initializeEventListeners() {
@@ -18,47 +17,28 @@ class ContainerTrafficControlOptions {
         document.getElementById('saveRulesBtn').addEventListener('click', () => this.saveRules());
     }
 
-    async loadContainers() {
-        try {
-            // Fetch all Firefox containers
-            const contextualIdentities = await browser.contextualIdentities.query({});
-            this.containers = contextualIdentities.map(identity => ({
-                name: identity.name,
-                cookieStoreId: identity.cookieStoreId
-            }));
+    initializeData() {
+        CtcRepo.getData(
+            (data) => {
+                // Success callback
+                this.containers = data.containers.containerArray;
+                this.rules = data.rules;
 
-            // Add "No Container" option for default browsing
-            this.containers.unshift({
-                name: "No Container",
-                cookieStoreId: "firefox-default"
-            });
+                ctcConsole.info('Options page initialized with:', this.containers.length, 'containers,', this.rules.length, 'rules');
 
-            ctcConsole.info('Loaded containers:', this.containers);
-        } catch (error) {
-            ctcConsole.error('Failed to load containers:', error);
-            this.showValidationMessage('Failed to load containers. Please reload the extension.', 'error');
-        }
-    }
+                // Display existing rules in the table
+                this.rules.forEach(rule => this.addRuleRow(rule));
 
-    async loadRules() {
-        try {
-            // Load existing rules from storage
-            const storage = await browser.storage.local.get('ctcRules');
-            this.rules = storage.ctcRules || [];
-
-            ctcConsole.info('Loaded rules from storage:', this.rules);
-
-            // Display existing rules in the table
-            this.rules.forEach(rule => this.addRuleRow(rule));
-
-            if (this.rules.length === 0) {
-                // Add one empty rule by default
-                this.addRuleRow();
+                if (this.rules.length === 0) {
+                    // Add one empty rule by default
+                    this.addRuleRow();
+                }
+            },
+            (error) => {
+                // Error callback
+                this.showValidationMessage('Failed to load extension data. Please reload the page.', 'error');
             }
-        } catch (error) {
-            ctcConsole.error('Failed to load rules:', error);
-            this.showValidationMessage('Failed to load saved rules.', 'error');
-        }
+        );
     }
 
     addRuleRow(existingRule = null) {

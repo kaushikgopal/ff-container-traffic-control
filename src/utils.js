@@ -8,7 +8,7 @@ const DEBUG = true; // Could be made configurable via storage in the future
  * @returns {Object} Console object with CTC-prefixed methods
  */
 function createCtcConsole() {
-    const ctcConsole = {
+    return {
         // Always-on methods (errors, warnings, important info)
         error: console.error.bind(console, '[CTC]'),
         warn: console.warn.bind(console, '[CTC]'),
@@ -16,7 +16,6 @@ function createCtcConsole() {
 
         // Debug-controlled methods (only active when DEBUG is true)
         log: DEBUG ? console.log.bind(console, '[CTC]') : () => {},
-        debug: DEBUG ? console.log.bind(console, '[CTC DEBUG]') : () => {},
 
         // Utility methods for enhanced debugging
         table: DEBUG ? console.table.bind(console) : () => {},
@@ -24,8 +23,6 @@ function createCtcConsole() {
         groupEnd: DEBUG ? console.groupEnd.bind(console) : () => {},
         groupCollapsed: DEBUG ? console.groupCollapsed.bind(console, '[CTC]') : () => {},
     };
-
-    return ctcConsole;
 }
 
 // Create and export the console instance
@@ -37,4 +34,27 @@ if (typeof window !== 'undefined') {
 } else {
     // For background scripts that might not have window object
     globalThis.ctcConsole = ctcConsole;
+}
+
+/**
+ * URL pattern matching with error handling
+ * @param {string} url - URL to test
+ * @param {string} pattern - Regex pattern
+ * @returns {boolean} Whether URL matches pattern
+ */
+function matchesPattern(url, pattern) {
+    try {
+        const regex = new RegExp(pattern);
+        return regex.test(url);
+    } catch (error) {
+        ctcConsole.error('Invalid regex pattern:', pattern, error);
+        return false;
+    }
+}
+
+// Make utilities available globally
+if (typeof window !== 'undefined') {
+    window.matchesPattern = matchesPattern;
+} else {
+    globalThis.matchesPattern = matchesPattern;
 }

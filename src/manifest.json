@@ -20,7 +20,7 @@
       "<all_urls>"
     ],
     "background": {
-        "scripts": ["utils.js", "background.js"]
+        "scripts": ["utils.js", "ctc-repository.js", "background.js"]
     },
     "options_ui": {
       "page": "options.html",

@@ -39,12 +39,22 @@ web-ext lint src/
 
 ### Core Components
 - **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage
+- **utils.js**: Shared utilities (console logging, container loading, rule loading, pattern matching)
 - **background.js**: Main extension logic for handling web requests and container routing
 - **options.html/js/css**: Complete settings UI with rule management table interface
 
+### Shared Utilities (utils.js)
+Common functions used by both background and options scripts:
+- **`loadContainers()`**: Returns `{containerMap, cookieStoreToNameMap}` with all Firefox containers
+- **`loadRules()`**: Returns array of rules from `browser.storage.local.ctcRules`
+- **`matchesPattern(url, pattern)`**: URL regex matching with error handling
+- **`ctcConsole`**: Consistent logging with debug control (`[CTC]` prefix)
+
+**Important**: utils.js must be loaded before other scripts in manifest.json
+
 ### Options Page Architecture
 The options page uses a class-based approach (`ContainerTrafficControlOptions`) with these key patterns:
-- Container loading via `browser.contextualIdentities.query()`
+- Container loading via shared `loadContainers()` function
 - Rule storage in `browser.storage.local` with key `'ctcRules'`
 - Table-based UI with dynamic row creation/deletion
 - Real-time validation for regex patterns and rule conflicts
