@@ -74,8 +74,8 @@ test('No Rules - Should default to No Container when starting fresh', () => {
 
 test('Rules Exist But No Match - Should stay in current container', () => {
     const rules = [
-        createRule('Work', 'allow', 'company.com'),
-        createRule('Personal', 'allow', 'facebook.com')
+        createRule('Work', 'open', 'company.com'),
+        createRule('Personal', 'open', 'facebook.com')
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -83,10 +83,10 @@ test('Rules Exist But No Match - Should stay in current container', () => {
     assertEqual(result, 'Personal', 'Should stay in current container when rules exist but none match');
 });
 
-// Test 3: Allow rules
-test('Allow Rules - Stay in current container', () => {
+// Test 3: Open rules
+test('Open Rules - Stay in current container', () => {
     const rules = [
-        createRule('Personal', 'allow', 'github.com')
+        createRule('Personal', 'open', 'github.com')
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -94,9 +94,9 @@ test('Allow Rules - Stay in current container', () => {
     assertEqual(result, 'Personal', 'Should stay in Personal container');
 });
 
-test('Allow Rules - Switch to matching container', () => {
+test('Open Rules - Switch to matching container', () => {
     const rules = [
-        createRule('Work', 'allow', 'github.com')
+        createRule('Work', 'open', 'github.com')
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -104,10 +104,10 @@ test('Allow Rules - Switch to matching container', () => {
     assertEqual(result, 'Work', 'Should switch to Work container');
 });
 
-// Test 4: Allow Only rules (restricted containers)
-test('Allow Only Rules - Boot from restricted container', () => {
+// Test 4: Restricted rules (restricted containers)
+test('Restricted Rules - Boot from restricted container', () => {
     const rules = [
-        createRule('Work', 'allow_only', 'company.com')
+        createRule('Work', 'restricted', 'company.com')
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -115,9 +115,9 @@ test('Allow Only Rules - Boot from restricted container', () => {
     assertEqual(result, 'No Container', 'Should be booted from restricted container');
 });
 
-test('Allow Only Rules - Stay in restricted container for matching URL', () => {
+test('Restricted Rules - Stay in restricted container for matching URL', () => {
     const rules = [
-        createRule('Work', 'allow_only', 'company.com')
+        createRule('Work', 'restricted', 'company.com')
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -128,8 +128,8 @@ test('Allow Only Rules - Stay in restricted container for matching URL', () => {
 // Test 5: High priority rules
 test('High Priority Rules - Should win over normal priority', () => {
     const rules = [
-        createRule('Personal', 'allow', 'github.com', false), // Normal priority
-        createRule('Work', 'allow', 'github.com', true)      // High priority
+        createRule('Personal', 'open', 'github.com', false), // Normal priority
+        createRule('Work', 'open', 'github.com', true)      // High priority
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -140,8 +140,8 @@ test('High Priority Rules - Should win over normal priority', () => {
 // Test 6: Rule order (first rule wins when same priority)
 test('Rule Order - First rule wins when same priority', () => {
     const rules = [
-        createRule('Personal', 'allow', 'github.com', true), // First high priority
-        createRule('Work', 'allow', 'github.com', true)     // Second high priority
+        createRule('Personal', 'open', 'github.com', true), // First high priority
+        createRule('Work', 'open', 'github.com', true)     // Second high priority
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -152,8 +152,8 @@ test('Rule Order - First rule wins when same priority', () => {
 // Test 7: HTTP Redirect scenarios (simulating redirect URL evaluation)
 test('HTTP Redirect - Boot from restricted container on redirect destination', () => {
     const rules = [
-        createRule('Personal', 'allow_only', 'www.google.com'),  // Allow Google redirect URLs
-        createRule('Personal', 'allow_only', 'mail.google.com') // Allow Gmail
+        createRule('Personal', 'restricted', 'www.google.com'),  // Allow Google redirect URLs
+        createRule('Personal', 'restricted', 'mail.google.com') // Allow Gmail
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
@@ -166,15 +166,15 @@ test('HTTP Redirect - Boot from restricted container on redirect destination', (
     assertEqual(finalResult, 'No Container', 'Should be booted from Personal container to No Container for final destination');
 });
 
-test('HTTP Redirect - Allow rule should not boot from container', () => {
+test('HTTP Redirect - Open rule should not boot from container', () => {
     const rules = [
-        createRule('Personal', 'allow', 'github.com')  // Regular allow rule (not restricted)
+        createRule('Personal', 'open', 'github.com')  // Regular open rule (not restricted)
     ];
     const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
 
-    // Should stay in Personal even for non-matching URLs (allow rules are not restrictive)
+    // Should stay in Personal even for non-matching URLs (open rules are not restrictive)
     const result = evaluateContainerForUrl('https://addons.mozilla.org/', 'Personal', rules, containerMap);
-    assertEqual(result, 'Personal', 'Should stay in Personal container with allow rules');
+    assertEqual(result, 'Personal', 'Should stay in Personal container with open rules');
 });
 
 // Summary

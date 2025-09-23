@@ -32,55 +32,53 @@
                 <tbody id="rulesTableBody">
                 </tbody>
             </table>
-
-            <div class="rule-legend">
-                <p><span class="type-icon restricted">🔒</span> Restricted (Allow Only) - Container ONLY accepts specified URLs</p>
-                <p><span class="type-icon open">🌐</span> Open (Allow) - Container accepts these URLs plus any others</p>
-            </div>
         </div>
 
         <div class="help-section">
-            <h3>Help</h3>
+            <h2>Help</h2>
 
-            <div class="help-subsection">
-                <h4>Rule Types:</h4>
+            <h4>Type</h4>
+            <div class="rule-legend">
+                <p><strong>🌐 Open Container:</strong> Container accepts these URLs plus any others. Use for containers that should handle specific sites but remain open for general browsing.</p>
+                <p><strong>🔒 Restricted Container:</strong> Container ONLY accepts specified URLs. Navigating to non-matching URLs will boot you out of the container. Use for strict isolation (e.g., work-only sites).</p>
+                <p><strong>⚠️ Important:</strong> A container cannot mix "Open" and "Restricted" rules.</p>
+            </div>
+
+            <h4>Container</h4>
+            <div class="rule-legend">
+                <p>Firefox container the rule applies to. "No Container" means default browsing without container isolation.</p>
+                <p>See <a href="https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/" target="_blank">Multi-Account Containers</a> for creating and managing containers.</p>
+            </div>
+
+            <h4>URL Pattern</h4>
+            <div class="rule-legend">
+                <p><strong>Simple patterns:</strong> Type the domain or URL part directly</p>
                 <ul>
-                    <li><strong>Allow:</strong> Container accepts this URL plus any others (open container)</li>
-                    <li><strong>Allow Only:</strong> Container ONLY accepts these URLs (restricted container)</li>
-                    <li><strong>⚠️ Important:</strong> A container cannot mix "Allow" and "Allow Only" rules</li>
+                    <li><code>github.com</code> → matches any URL containing "github.com"</li>
+                    <li><code>mail.google.com</code> → matches Gmail URLs</li>
+                    <li><code>work.example.com</code> → matches work site URLs</li>
+                </ul>
+                <p><strong>Regex patterns:</strong> Wrap in slashes for advanced matching</p>
+                <ul>
+                    <li><code>/.*\.google\.com/</code> → matches any Google subdomain</li>
+                    <li><code>/^https://github\.com/user/</code> → matches specific user's repos</li>
+                    <li><code>/\.(work|company)\.com$/</code> → matches multiple work domains</li>
                 </ul>
             </div>
 
-            <div class="help-subsection">
-                <h4>How Container Traffic Control Works:</h4>
-                <ol>
-                    <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
-                    <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
-                    <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
-                    <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
-                </ol>
+            <h4>High Priority</h4>
+            <div class="rule-legend">
+                <p>When multiple containers match a URL (and you're about to move to a new container), high-priority rules are chosen first. Use to override default container assignments.</p>
+                <p><strong>Example:</strong> Both "Personal" and "Work" containers match <code>github.com</code>, but "Work" has high priority → opens in Work container.</p>
             </div>
 
-            <div class="help-subsection">
-                <h4>Settings:</h4>
-                <ul>
-                    <li><strong>Type:</strong>
-                        <ul>
-                            <li>🌐 <strong>Open:</strong> Container accepts these URLs plus any others</li>
-                            <li>🔒 <strong>Restricted:</strong> Container ONLY accepts these URLs</li>
-                        </ul>
-                    </li>
-                    <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing</li>
-                    <li><strong>URL Pattern:</strong>
-                        <ul>
-                            <li><strong>Simple:</strong> Just type the domain or URL part (e.g., "github.com", "mail.google.com")</li>
-                            <li><strong>Advanced:</strong> Use regex by wrapping in slashes (e.g., "/.*\\.google\\.com/", "/^https://github\\.com/")</li>
-                        </ul>
-                    </li>
-                    <li><strong>High Priority:</strong> When multiple containers match a URL, high-priority rules are chosen first</li>
-                    <li><strong>⚠️ Privacy Tip:</strong> Use specific patterns when possible to maintain container isolation</li>
-                </ul>
-            </div>
+            <h3>How Container Traffic Control Works</h3>
+            <ol>
+                <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
+                <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
+                <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
+                <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
+            </ol>
         </div>
     </div>
 

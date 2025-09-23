@@ -118,29 +118,29 @@ class ContainerTrafficControlOptions {
         return select;
     }
 
-    createTypeSelect(selectedType = 'allow') {
+    createTypeSelect(selectedType = 'open') {
         const select = document.createElement('select');
         select.className = 'type-select';
         select.required = true;
 
         // Add options
-        const allowOption = document.createElement('option');
-        allowOption.value = 'allow';
-        allowOption.textContent = '🌐 Open';
-        allowOption.title = 'Container accepts these URLs plus any others';
-        if (selectedType === 'allow') {
-            allowOption.selected = true;
+        const openOption = document.createElement('option');
+        openOption.value = 'open';
+        openOption.textContent = '🌐 Open';
+        openOption.title = 'Container accepts these URLs plus any others';
+        if (selectedType === 'open') {
+            openOption.selected = true;
         }
-        select.appendChild(allowOption);
+        select.appendChild(openOption);
 
-        const allowOnlyOption = document.createElement('option');
-        allowOnlyOption.value = 'allow_only';
-        allowOnlyOption.textContent = '🔒 Restricted';
-        allowOnlyOption.title = 'Container ONLY accepts these URLs';
-        if (selectedType === 'allow_only') {
-            allowOnlyOption.selected = true;
+        const restrictedOption = document.createElement('option');
+        restrictedOption.value = 'restricted';
+        restrictedOption.textContent = '🔒 Restricted';
+        restrictedOption.title = 'Container ONLY accepts these URLs';
+        if (selectedType === 'restricted') {
+            restrictedOption.selected = true;
         }
-        select.appendChild(allowOnlyOption);
+        select.appendChild(restrictedOption);
 
         return select;
     }
@@ -195,7 +195,7 @@ class ContainerTrafficControlOptions {
     }
 
     clearRow(row) {
-        row.querySelector('.type-select').value = 'allow';
+        row.querySelector('.type-select').value = 'open';
         row.querySelector('.container-select').value = '';
         row.querySelector('.url-pattern-input').value = '';
         row.querySelector('.priority-checkbox').checked = false;
@@ -233,9 +233,9 @@ class ContainerTrafficControlOptions {
         const action = row.querySelector('.type-select').value;
         const pattern = urlPatternInput.value.trim();
 
-        // Check for invalid "Allow Only" + "*" combination
-        if (action === 'allow_only' && pattern === '*') {
-            this.setRowValidation(row, 'invalid', 'Invalid rule: "Allow Only" with "*" pattern blocks all navigation');
+        // Check for invalid "Restricted" + "*" combination
+        if (action === 'restricted' && pattern === '*') {
+            this.setRowValidation(row, 'invalid', 'Invalid rule: "Restricted" with "*" pattern blocks all navigation');
             return false;
         } else {
             this.clearRowValidation(row);
@@ -332,32 +332,32 @@ class ContainerTrafficControlOptions {
         const errors = [];
         const warnings = [];
 
-        // Check that containers don't mix allow and allow-only rules
+        // Check that containers don't mix open and restricted rules
         const containerRules = {};
         rules.forEach((rule, index) => {
             if (!containerRules[rule.containerName]) {
-                containerRules[rule.containerName] = { allow: 0, allowOnly: 0, ruleNumbers: [] };
+                containerRules[rule.containerName] = { open: 0, restricted: 0, ruleNumbers: [] };
             }
-            if (rule.action === 'allow') {
-                containerRules[rule.containerName].allow++;
-            } else if (rule.action === 'allow_only') {
-                containerRules[rule.containerName].allowOnly++;
+            if (rule.action === 'open') {
+                containerRules[rule.containerName].open++;
+            } else if (rule.action === 'restricted') {
+                containerRules[rule.containerName].restricted++;
             }
             containerRules[rule.containerName].ruleNumbers.push(index + 1);
         });
 
         // Validate container rule consistency
         for (const [container, counts] of Object.entries(containerRules)) {
-            if (counts.allow > 0 && counts.allowOnly > 0) {
-                errors.push(`Container "${container}" cannot mix 'allow' and 'allow-only' rules. All rules for a container must be the same type.`);
+            if (counts.open > 0 && counts.restricted > 0) {
+                errors.push(`Container "${container}" cannot mix 'open' and 'restricted' rules. All rules for a container must be the same type.`);
             }
         }
 
         // Check each rule for validation issues
         rules.forEach((rule, index) => {
-            // Check for invalid "Allow Only" + "*" combination
-            if (rule.action === 'allow_only' && rule.urlPattern === '*') {
-                errors.push(`Rule ${index + 1}: "Allow Only" with "*" pattern blocks all navigation`);
+            // Check for invalid "Restricted" + "*" combination
+            if (rule.action === 'restricted' && rule.urlPattern === '*') {
+                errors.push(`Rule ${index + 1}: "Restricted" with "*" pattern blocks all navigation`);
             }
 
             // Warn about wildcard patterns
