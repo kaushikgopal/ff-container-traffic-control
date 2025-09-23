@@ -14,44 +14,28 @@
             <h2>Rules</h2>
             <div class="validation-messages" id="validationMessages"></div>
 
-            <div class="rule-type-section">
-                <h3>Allow Rules (Open Containers)</h3>
-                <p class="rule-type-description">Container will be preferred to open these urls. might open other urls.</p>
-                <table id="allowRulesTable" class="rules-table">
-                    <thead>
-                        <tr>
-                            <th>Container</th>
-                            <th>URL Pattern</th>
-                            <th>High Priority</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="allowRulesTableBody">
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="rule-type-section">
-                <h3>Allow Only Rules (Restricted Containers)</h3>
-                <p class="rule-type-description">Container ONLY accepts specified URLs</p>
-                <table id="allowOnlyRulesTable" class="rules-table">
-                    <thead>
-                        <tr>
-                            <th>Container</th>
-                            <th>URL Pattern</th>
-                            <th>High Priority</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="allowOnlyRulesTableBody">
-                    </tbody>
-                </table>
-            </div>
-
             <div class="button-group">
-                <button id="addAllowRuleBtn" class="btn btn-secondary">Add Allow Rule</button>
-                <button id="addAllowOnlyRuleBtn" class="btn btn-secondary">Add Allow Only Rule</button>
+                <button id="addRuleBtn" class="btn btn-secondary">Add Rule</button>
                 <button id="saveRulesBtn" class="btn btn-primary">Save Rules</button>
+            </div>
+
+            <table id="rulesTable" class="rules-table">
+                <thead>
+                    <tr>
+                        <th class="type-column">Type</th>
+                        <th>Container</th>
+                        <th>URL Pattern</th>
+                        <th>High Priority</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rulesTableBody">
+                </tbody>
+            </table>
+
+            <div class="rule-legend">
+                <p><span class="type-icon restricted">🔒</span> Restricted (Allow Only) - Container ONLY accepts specified URLs</p>
+                <p><span class="type-icon open">🌐</span> Open (Allow) - Container accepts these URLs plus any others</p>
             </div>
         </div>
 
@@ -80,6 +64,12 @@
             <div class="help-subsection">
                 <h4>Settings:</h4>
                 <ul>
+                    <li><strong>Type:</strong>
+                        <ul>
+                            <li>🌐 <strong>Open:</strong> Container accepts these URLs plus any others</li>
+                            <li>🔒 <strong>Restricted:</strong> Container ONLY accepts these URLs</li>
+                        </ul>
+                    </li>
                     <li><strong>Container:</strong> Select which container the rule applies to. "No Container" means default browsing</li>
                     <li><strong>URL Pattern:</strong>
                         <ul>
