@@ -1,31 +1,6 @@
 // Container Traffic Control Rule Engine
 // Pure JavaScript rule evaluation logic (testable, no browser dependencies)
 
-/**
- * URL pattern matching with dual-mode support
- * @param {string} url - URL to test
- * @param {string} pattern - Pattern (regex if enclosed in /.../, literal otherwise)
- * @returns {boolean} Whether URL matches pattern
- */
-function matchesPattern(url, pattern) {
-    if (!pattern) return false;
-
-    try {
-        // Check if pattern is regex mode (enclosed in /.../)
-        if (pattern.startsWith('/') && pattern.endsWith('/') && pattern.length > 2) {
-            // Regex mode: strip slashes and use as regex
-            const regexPattern = pattern.slice(1, -1);
-            const regex = new RegExp(regexPattern);
-            return regex.test(url);
-        } else {
-            // Literal mode: simple contains match
-            return url.includes(pattern);
-        }
-    } catch (error) {
-        console.error('Invalid pattern:', pattern, error);
-        return false;
-    }
-}
 
 /**
  * Core rule evaluation logic (pure function, no browser dependencies)
@@ -39,8 +14,6 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
     // 1. Get current container name (default to 'No Container' if not found)
     let targetContainer = currentContainerName || 'No Container';
 
-    console.log(`Evaluating URL: ${url}`);
-    console.log('Current container:', targetContainer);
 
     // 2. Check if we need to boot from restricted container
     if (targetContainer !== 'No Container') {
@@ -50,7 +23,6 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
         if (hasAllowOnlyRules) {
             const matchesAnyRule = containerRules.some(rule => matchesPattern(url, rule.urlPattern));
             if (!matchesAnyRule) {
-                console.log(`Booting from restricted container: ${targetContainer}`);
                 targetContainer = null; // Must leave this container
             }
         }
@@ -68,11 +40,9 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
         }
     });
 
-    console.log('Allowed containers:', allowedContainers);
 
     // 4. Select final container
     if (targetContainer && allowedContainers.some(c => c.name === targetContainer)) {
-        console.log(`Staying in current container: ${targetContainer}`);
         return targetContainer;
     }
 
@@ -81,21 +51,16 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
     if (highPriorityContainers.length > 0) {
         // Sort by rule index (first rule wins)
         highPriorityContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
-        const selected = highPriorityContainers[0].name;
-        console.log(`Selected high priority container: ${selected}`);
-        return selected;
+        return highPriorityContainers[0].name;
     }
 
     // Use first allowed container (by rule order)
     if (allowedContainers.length > 0) {
         allowedContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
-        const selected = allowedContainers[0].name;
-        console.log(`Selected first allowed container: ${selected}`);
-        return selected;
+        return allowedContainers[0].name;
     }
 
     // Default to current container (stay put when no rules match)
-    console.log(`No matching rules, staying in current container: ${targetContainer || 'No Container'}`);
     return targetContainer || 'No Container';
 }
 
@@ -105,5 +70,5 @@ if (typeof window !== 'undefined') {
     window.evaluateContainerForUrl = evaluateContainerForUrl;
 } else if (typeof module !== 'undefined' && module.exports) {
     // Node.js environment
-    module.exports = { evaluateContainerForUrl, matchesPattern };
+    module.exports = { evaluateContainerForUrl };
 }

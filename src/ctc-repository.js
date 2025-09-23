@@ -30,7 +30,7 @@ const CtcRepo = {
                 this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
             });
 
-            ctcConsole.log('loaded containers:', Array.from(this.containerMap.entries()));
+            ctcConsole.log(`Loaded ${this.containerMap.size} containers`);
 
             if (onSuccess) onSuccess(this.getContainerData());
             return this.getContainerData();
@@ -50,7 +50,7 @@ const CtcRepo = {
         try {
             const storage = await browser.storage.sync.get('ctcRules');
             this.rules = storage.ctcRules || [];
-            ctcConsole.log('loaded rules:', this.rules);
+            ctcConsole.log(`Loaded ${this.rules.length} rules`);
 
             if (onSuccess) onSuccess(this.rules);
             return this.rules;
@@ -76,7 +76,7 @@ const CtcRepo = {
                 rules: this.rules
             };
 
-            ctcConsole.log('initialized with', this.rules.length, 'rules &', this.containerMap.size, 'containers');
+            ctcConsole.info('Extension initialized');
 
             if (onSuccess) onSuccess(result);
             return result;
