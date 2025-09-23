@@ -14,37 +14,49 @@
             <h2>Rules</h2>
             <div class="validation-messages" id="validationMessages"></div>
 
-            <table id="rulesTable" class="rules-table">
-                <thead>
-                    <tr>
-                        <th>Container</th>
-                        <th>Action</th>
-                        <th>URL Pattern</th>
-                        <th>High Priority</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="rulesTableBody">
-                </tbody>
-            </table>
+            <div class="rule-type-section">
+                <h3>Allow Rules (Open Containers)</h3>
+                <p class="rule-type-description">Container will be preferred to open these urls. might open other urls.</p>
+                <table id="allowRulesTable" class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>Container</th>
+                            <th>URL Pattern</th>
+                            <th>High Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allowRulesTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="rule-type-section">
+                <h3>Allow Only Rules (Restricted Containers)</h3>
+                <p class="rule-type-description">Container ONLY accepts specified URLs</p>
+                <table id="allowOnlyRulesTable" class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>Container</th>
+                            <th>URL Pattern</th>
+                            <th>High Priority</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allowOnlyRulesTableBody">
+                    </tbody>
+                </table>
+            </div>
 
             <div class="button-group">
-                <button id="addRuleBtn" class="btn btn-secondary">Add Rule</button>
+                <button id="addAllowRuleBtn" class="btn btn-secondary">Add Allow Rule</button>
+                <button id="addAllowOnlyRuleBtn" class="btn btn-secondary">Add Allow Only Rule</button>
                 <button id="saveRulesBtn" class="btn btn-primary">Save Rules</button>
             </div>
         </div>
 
         <div class="help-section">
             <h3>Help</h3>
-            <div class="help-subsection">
-                <h4>How Container Traffic Control Works:</h4>
-                <ol>
-                    <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
-                    <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
-                    <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
-                    <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
-                </ol>
-            </div>
 
             <div class="help-subsection">
                 <h4>Rule Types:</h4>
@@ -53,6 +65,16 @@
                     <li><strong>Allow Only:</strong> Container ONLY accepts these URLs (restricted container)</li>
                     <li><strong>⚠️ Important:</strong> A container cannot mix "Allow" and "Allow Only" rules</li>
                 </ul>
+            </div>
+
+            <div class="help-subsection">
+                <h4>How Container Traffic Control Works:</h4>
+                <ol>
+                    <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
+                    <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
+                    <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
+                    <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
+                </ol>
             </div>
 
             <div class="help-subsection">
@@ -67,30 +89,6 @@
                     </li>
                     <li><strong>High Priority:</strong> When multiple containers match a URL, high-priority rules are chosen first</li>
                     <li><strong>⚠️ Privacy Tip:</strong> Use specific patterns when possible to maintain container isolation</li>
-                </ul>
-            </div>
-
-            <div class="help-subsection">
-                <h4>Examples:</h4>
-                <ul>
-                    <li><strong>Work Container (Allow Only):</strong>
-                        <ul>
-                            <li>Simple: "slack.company.com" - Company Slack only</li>
-                            <li>Advanced: "/.*\\.company\\.com/" - All company subdomains</li>
-                        </ul>
-                    </li>
-                    <li><strong>Social Container (Allow):</strong>
-                        <ul>
-                            <li>Simple: "facebook.com", "twitter.com" - Individual rules</li>
-                            <li>Advanced: "/.*\\.(facebook|twitter|instagram)\\.com/" - Multiple social sites</li>
-                        </ul>
-                    </li>
-                    <li><strong>Personal Container (Allow):</strong>
-                        <ul>
-                            <li>Simple: "github.com/myusername" - Personal GitHub repos</li>
-                            <li>Simple: "mail.google.com" - Personal Gmail</li>
-                        </ul>
-                    </li>
                 </ul>
             </div>
         </div>

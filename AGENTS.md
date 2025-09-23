@@ -7,13 +7,25 @@ Container Traffic Control is a Firefox extension that automatically manages cont
 
 ## Development Commands
 
-### Loading the Extension for Development
+### Development Commands (Makefile)
 ```bash
-# Install web-ext (recommended)
-brew install web-ext
+# Show all available commands
+make help
 
-# Run extension with hot reload (from project root)
-web-ext run
+# Build extension package (default)
+make build
+
+# Run unit tests for rule engine
+make test
+
+# Validate extension code and manifest
+make lint
+
+# Run extension in Firefox for development
+make run
+
+# Clean build artifacts
+make clean
 ```
 
 ### Manual Testing
@@ -27,19 +39,18 @@ web-ext run
 - Extension storage viewable via DevTools → Storage tab
 - Or programmatically: `browser.storage.sync.get()`
 
-### Code Validation
+### Direct web-ext Commands (if needed)
 ```bash
-# Check JavaScript syntax and extension manifest
+# Install web-ext (recommended)
+brew install web-ext
+
+# Commands (or use Makefile equivalents above)
 web-ext lint
-
-# Run extension with auto-reload for testing
 web-ext run
-
-# Build extension package (for distribution)
-web-ext build
+web-ext build --overwrite-dest
 ```
 
-**Important**: Always run `web-ext lint` after making changes to verify the extension is valid and ready for distribution.
+**Important**: Always run `make lint` after making changes to verify the extension is valid and ready for distribution.
 
 ## Architecture
 
@@ -106,7 +117,7 @@ if (new RegExp(pattern).test(url)) {
 2. **Options page changes**: Use existing validation methods, extend don't replace
 3. **New features**: Add to CtcRepo if data-related, maintain separation of concerns
 4. **Pattern changes**: Update both `matchesPattern()` and validation in options.js
-5. **Testing**: Always run `web-ext lint` after changes to catch errors before distribution
+5. **Testing**: Always run `make lint` and `make test` after changes to catch errors before distribution
 
 ### Options Page Architecture
 The options page uses a class-based approach (`ContainerTrafficControlOptions`) with these key patterns:

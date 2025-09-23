@@ -25,7 +25,7 @@
       "<all_urls>"
     ],
     "background": {
-        "scripts": ["src/utils.js", "src/ctc-repository.js", "src/background.js"]
+        "scripts": ["src/utils.js", "src/rule-engine.js", "src/ctc-repository.js", "src/background.js"]
     },
     "options_ui": {
       "page": "src/options.html",

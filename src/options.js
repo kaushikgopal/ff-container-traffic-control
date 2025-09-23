@@ -5,7 +5,8 @@ class ContainerTrafficControlOptions {
     constructor() {
         this.containers = [];
         this.rules = [];
-        this.rulesTableBody = document.getElementById('rulesTableBody');
+        this.allowRulesTableBody = document.getElementById('allowRulesTableBody');
+        this.allowOnlyRulesTableBody = document.getElementById('allowOnlyRulesTableBody');
         this.validationMessages = document.getElementById('validationMessages');
 
         this.initializeEventListeners();
@@ -13,7 +14,8 @@ class ContainerTrafficControlOptions {
     }
 
     initializeEventListeners() {
-        document.getElementById('addRuleBtn').addEventListener('click', () => this.addRuleRow());
+        document.getElementById('addAllowRuleBtn').addEventListener('click', () => this.addRuleRow('allow'));
+        document.getElementById('addAllowOnlyRuleBtn').addEventListener('click', () => this.addRuleRow('allow_only'));
         document.getElementById('saveRulesBtn').addEventListener('click', () => this.saveRules());
     }
 
@@ -26,12 +28,12 @@ class ContainerTrafficControlOptions {
 
                 ctcConsole.info('Options page initialized with:', this.containers.length, 'containers,', this.rules.length, 'rules');
 
-                // Display existing rules in the table
-                this.rules.forEach(rule => this.addRuleRow(rule));
+                // Display existing rules in the appropriate tables
+                this.rules.forEach(rule => this.addRuleRow(rule.action, rule));
 
                 if (this.rules.length === 0) {
                     // Add one empty rule by default
-                    this.addRuleRow();
+                    this.addRuleRow('allow');
                 }
             },
             (error) => {
@@ -41,15 +43,15 @@ class ContainerTrafficControlOptions {
         );
     }
 
-    addRuleRow(existingRule = null) {
+    addRuleRow(action, existingRule = null) {
         const row = document.createElement('tr');
         row.className = 'rule-row';
 
+        // Store the action on the row for later retrieval
+        row.dataset.action = action;
+
         // Create container dropdown
         const containerSelect = this.createContainerSelect(existingRule?.containerName);
-
-        // Create action dropdown
-        const actionSelect = this.createActionSelect(existingRule?.action);
 
         // Create URL pattern input with validation
         const urlPatternInput = this.createUrlPatternInput(existingRule?.urlPattern);
@@ -64,9 +66,6 @@ class ContainerTrafficControlOptions {
         const containerCell = document.createElement('td');
         containerCell.appendChild(containerSelect);
 
-        const actionCell = document.createElement('td');
-        actionCell.appendChild(actionSelect);
-
         const urlPatternCell = document.createElement('td');
         urlPatternCell.appendChild(urlPatternInput);
 
@@ -80,14 +79,15 @@ class ContainerTrafficControlOptions {
 
         // Append all cells to the row
         row.appendChild(containerCell);
-        row.appendChild(actionCell);
         row.appendChild(urlPatternCell);
         row.appendChild(priorityCell);
         row.appendChild(deleteCell);
 
-        this.rulesTableBody.appendChild(row);
+        // Add to appropriate table
+        const tableBody = action === 'allow_only' ? this.allowOnlyRulesTableBody : this.allowRulesTableBody;
+        tableBody.appendChild(row);
 
-        // Re-attach event listeners after innerHTML
+        // Re-attach event listeners
         this.attachRowEventListeners(row);
     }
 
@@ -116,29 +116,6 @@ class ContainerTrafficControlOptions {
         return select;
     }
 
-    createActionSelect(selectedAction = '') {
-        const select = document.createElement('select');
-        select.className = 'action-select';
-        select.required = true;
-
-        const options = [
-            { value: '', text: 'Select Action' },
-            { value: 'allow', text: 'Allow' },
-            { value: 'allow_only', text: 'Allow Only' }
-        ];
-
-        options.forEach(option => {
-            const optionElement = document.createElement('option');
-            optionElement.value = option.value;
-            optionElement.textContent = option.text;
-            if (option.value === selectedAction) {
-                optionElement.selected = true;
-            }
-            select.appendChild(optionElement);
-        });
-
-        return select;
-    }
 
     createUrlPatternInput(existingPattern = '') {
         const input = document.createElement('input');
@@ -174,15 +151,14 @@ class ContainerTrafficControlOptions {
         // Add real-time validation for URL pattern input
         const urlPatternInput = row.querySelector('.url-pattern-input');
         urlPatternInput.addEventListener('input', (e) => this.validateUrlPattern(e.target));
-
-        // Add validation for action + pattern combination
-        const actionSelect = row.querySelector('.action-select');
-        actionSelect.addEventListener('change', () => this.validateRow(row));
         urlPatternInput.addEventListener('input', () => this.validateRow(row));
     }
 
     deleteRuleRow(row) {
-        if (this.rulesTableBody.children.length > 1) {
+        const tableBody = row.parentNode;
+        const totalRows = this.allowRulesTableBody.children.length + this.allowOnlyRulesTableBody.children.length;
+
+        if (totalRows > 1) {
             row.remove();
         } else {
             // Keep at least one row, just clear it
@@ -192,7 +168,6 @@ class ContainerTrafficControlOptions {
 
     clearRow(row) {
         row.querySelector('.container-select').value = '';
-        row.querySelector('.action-select').value = '';
         row.querySelector('.url-pattern-input').value = '';
         row.querySelector('.priority-checkbox').checked = false;
         this.clearRowValidation(row);
@@ -225,10 +200,8 @@ class ContainerTrafficControlOptions {
     }
 
     validateRow(row) {
-        const actionSelect = row.querySelector('.action-select');
         const urlPatternInput = row.querySelector('.url-pattern-input');
-
-        const action = actionSelect.value;
+        const action = row.dataset.action;
         const pattern = urlPatternInput.value.trim();
 
         // Check for invalid "Allow Only" + "*" combination
@@ -302,20 +275,38 @@ class ContainerTrafficControlOptions {
     }
 
     collectRulesFromTable() {
-        const rows = this.rulesTableBody.querySelectorAll('.rule-row');
+        const allowRows = this.allowRulesTableBody.querySelectorAll('.rule-row');
+        const allowOnlyRows = this.allowOnlyRulesTableBody.querySelectorAll('.rule-row');
         const rules = [];
 
-        rows.forEach(row => {
+        // Collect allow rules
+        allowRows.forEach(row => {
             const containerName = row.querySelector('.container-select').value.trim();
-            const action = row.querySelector('.action-select').value.trim();
             const urlPattern = row.querySelector('.url-pattern-input').value.trim();
             const highPriority = row.querySelector('.priority-checkbox').checked;
 
             // Only include rules with all required fields
-            if (containerName && action && urlPattern) {
+            if (containerName && urlPattern) {
                 rules.push({
                     containerName,
-                    action,
+                    action: 'allow',
+                    urlPattern,
+                    highPriority
+                });
+            }
+        });
+
+        // Collect allow only rules
+        allowOnlyRows.forEach(row => {
+            const containerName = row.querySelector('.container-select').value.trim();
+            const urlPattern = row.querySelector('.url-pattern-input').value.trim();
+            const highPriority = row.querySelector('.priority-checkbox').checked;
+
+            // Only include rules with all required fields
+            if (containerName && urlPattern) {
+                rules.push({
+                    containerName,
+                    action: 'allow_only',
                     urlPattern,
                     highPriority
                 });

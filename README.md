@@ -95,8 +95,37 @@ For complex matching, wrap patterns in forward slashes:
 
 1. Clone this repository
 2. Install web-ext: `brew install web-ext`
-3. Run the extension: `web-ext run`
-4. Firefox will launch with the extension loaded
+3. Build and test: `make build && make test`
+4. Run the extension: `make run`
+
+## Available Commands
+
+```bash
+make help    # Show all available commands
+make build   # Build extension package (default)
+make test    # Run unit tests for rule engine
+make lint    # Validate extension code and manifest
+make run     # Run extension in Firefox for development
+make clean   # Remove build artifacts
+```
+
+## Testing
+
+The extension includes a comprehensive test suite for rule evaluation logic:
+
+```bash
+# Run all tests
+make test
+
+# Tests cover:
+# - Pattern matching (simple and regex patterns)
+# - Rule evaluation scenarios
+# - Container switching logic
+# - Priority handling
+# - Edge cases and error conditions
+```
+
+Tests are located in `test/rule-engine-test.js` and can be run independently with `node test/rule-engine-test.js`. The test framework is simple and doesn't require additional dependencies.
 
 ## Alternative: Manual Loading
 1. Open Firefox → `about:debugging`

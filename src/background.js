@@ -46,7 +46,7 @@ async function handleRequest(details) {
         // Switch if needed
         if (currentCookieStoreId !== targetCookieStoreId) {
             const { cookieStoreToNameMap } = CtcRepo.getContainerData();
-            ctcConsole.info(`Redirecting from ${cookieStoreToNameMap.get(currentCookieStoreId)} to ${cookieStoreToNameMap.get(targetCookieStoreId)}`);
+            ctcConsole.log(`Redirecting from ${cookieStoreToNameMap.get(currentCookieStoreId)} to ${cookieStoreToNameMap.get(targetCookieStoreId)}`);
 
             // Create new tab in target container
             browser.tabs.create({
@@ -92,75 +92,26 @@ async function getCurrentContainer(tabId) {
     }
 }
 
-// Rule evaluation function
+// Rule evaluation function (wrapper around pure rule engine)
 function evaluateContainer(url, currentCookieStoreId) {
     const { containerMap, cookieStoreToNameMap } = CtcRepo.getContainerData();
     const rules = CtcRepo.getRules();
 
-    // 1. Get current container name
-    let targetContainer = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
+    // Get current container name
+    const currentContainerName = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
 
     ctcConsole.groupCollapsed(`Evaluating URL: ${url}`);
-    ctcConsole.log('Current container:', targetContainer);
 
-    // 2. Check if we need to boot from restricted container
-    if (targetContainer !== 'No Container') {
-        const containerRules = rules.filter(rule => rule.containerName === targetContainer);
-        const hasAllowOnlyRules = containerRules.some(rule => rule.action === 'allow_only');
+    // Use the pure rule engine
+    const targetContainerName = evaluateContainerForUrl(url, currentContainerName, rules, containerMap);
 
-        if (hasAllowOnlyRules) {
-            const matchesAnyRule = containerRules.some(rule => matchesPattern(url, rule.urlPattern));
-            if (!matchesAnyRule) {
-                ctcConsole.log(`Booting from restricted container: ${targetContainer}`);
-                targetContainer = null; // Must leave this container
-            }
-        }
-    }
-
-    // 3. Find allowed containers for URL
-    const allowedContainers = [];
-    rules.forEach(rule => {
-        if (matchesPattern(url, rule.urlPattern)) {
-            allowedContainers.push({
-                name: rule.containerName,
-                highPriority: rule.highPriority,
-                ruleIndex: rules.indexOf(rule)
-            });
-        }
-    });
-
-    ctcConsole.log('Allowed containers:', allowedContainers);
-
-    // 4. Select final container
-    if (targetContainer && allowedContainers.some(c => c.name === targetContainer)) {
-        ctcConsole.log(`Staying in current container: ${targetContainer}`);
-        ctcConsole.groupEnd();
-        return containerMap.get(targetContainer);
-    }
-
-    // Find high priority containers first
-    const highPriorityContainers = allowedContainers.filter(c => c.highPriority);
-    if (highPriorityContainers.length > 0) {
-        // Sort by rule index (first rule wins)
-        highPriorityContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
-        const selected = highPriorityContainers[0].name;
-        ctcConsole.log(`Selected high priority container: ${selected}`);
-        ctcConsole.groupEnd();
-        return containerMap.get(selected);
-    }
-
-    // Use first allowed container (by rule order)
-    if (allowedContainers.length > 0) {
-        allowedContainers.sort((a, b) => a.ruleIndex - b.ruleIndex);
-        const selected = allowedContainers[0].name;
-        ctcConsole.log(`Selected first allowed container: ${selected}`);
-        ctcConsole.groupEnd();
-        return containerMap.get(selected);
-    }
-
-    // Default to no container
-    ctcConsole.log('No matching rules, using No Container');
     ctcConsole.groupEnd();
-    return 'firefox-default';
+
+    // Convert container name back to cookieStoreId
+    if (targetContainerName === 'No Container') {
+        return 'firefox-default';
+    }
+
+    return containerMap.get(targetContainerName) || 'firefox-default';
 }
 
