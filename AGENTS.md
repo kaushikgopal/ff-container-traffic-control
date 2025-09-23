@@ -12,15 +12,14 @@ Container Traffic Control is a Firefox extension that automatically manages cont
 # Install web-ext (recommended)
 brew install web-ext
 
-# Run extension with hot reload
-cd src/
+# Run extension with hot reload (from project root)
 web-ext run
 ```
 
 ### Manual Testing
 - Navigate to `about:debugging` in Firefox
 - Click "This Firefox" → "Load Temporary Add-on"
-- Select `src/manifest.json`
+- Select `manifest.json` (in project root)
 
 ### Debugging
 - Go to `about:debugging` → Find extension → Click "Inspect"
@@ -31,24 +30,24 @@ web-ext run
 ### Code Validation
 ```bash
 # Check JavaScript syntax and extension manifest
-web-ext lint src/
+web-ext lint
 
 # Run extension with auto-reload for testing
-cd src/ && web-ext run
+web-ext run
 
 # Build extension package (for distribution)
-cd src/ && web-ext build
+web-ext build
 ```
 
 ## Architecture
 
 ### Core Components
-- **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage, icons
-- **utils.js**: Shared utilities (console logging, pattern matching)
-- **ctc-repository.js**: Centralized data management (CtcRepo) for containers and rules
-- **background.js**: Main extension logic for handling web requests and container routing
-- **options.html/js/css**: Complete settings UI with rule management table interface
-- **icons/**: High-quality extension icons (16px, 32px, 48px, 96px)
+- **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage, icons (project root)
+- **src/utils.js**: Shared utilities (console logging, pattern matching)
+- **src/ctc-repository.js**: Centralized data management (CtcRepo) for containers and rules
+- **src/background.js**: Main extension logic for handling web requests and container routing
+- **src/options.html/js/css**: Complete settings UI with rule management table interface
+- **icons/**: High-quality extension icons (16px, 32px, 48px, 96px) (project root)
 
 ### Shared Utilities (utils.js)
 Common functions used by both background and options scripts:

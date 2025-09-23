@@ -25,10 +25,10 @@
       "<all_urls>"
     ],
     "background": {
-        "scripts": ["utils.js", "ctc-repository.js", "background.js"]
+        "scripts": ["src/utils.js", "src/ctc-repository.js", "src/background.js"]
     },
     "options_ui": {
-      "page": "options.html",
+      "page": "src/options.html",
       "open_in_tab": false
     },
     "browser_specific_settings": {

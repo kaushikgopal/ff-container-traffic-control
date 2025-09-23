@@ -95,13 +95,13 @@ For complex matching, wrap patterns in forward slashes:
 
 1. Clone this repository
 2. Install web-ext: `brew install web-ext`
-3. Run the extension: `cd src/ && web-ext run`
+3. Run the extension: `web-ext run`
 4. Firefox will launch with the extension loaded
 
 ## Alternative: Manual Loading
 1. Open Firefox → `about:debugging`
 2. Click "This Firefox" → "Load Temporary Add-on"
-3. Select `src/manifest.json`
+3. Select `manifest.json` (in project root)
 
 ## Debugging
 - Go to `about:debugging` → Find "Container Traffic Control" → Click "Inspect"
