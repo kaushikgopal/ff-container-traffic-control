@@ -48,7 +48,7 @@ const CtcRepo = {
      */
     async loadRules(onSuccess, onError) {
         try {
-            const storage = await browser.storage.local.get('ctcRules');
+            const storage = await browser.storage.sync.get('ctcRules');
             this.rules = storage.ctcRules || [];
             ctcConsole.log('loaded rules:', this.rules);
 

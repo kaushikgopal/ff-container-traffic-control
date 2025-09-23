@@ -8,8 +8,8 @@ browser.webRequest.onBeforeRequest.addListener(
     ["blocking"]
 );
 
-browser.storage.onChanged.addListener((changes) => {
-    if (changes.ctcRules) {
+browser.storage.onChanged.addListener((changes, areaName) => {
+    if (changes.ctcRules && areaName === 'sync') {
         ctcConsole.log('rules were updated, reloading rules...');
         CtcRepo.loadRules();
     }

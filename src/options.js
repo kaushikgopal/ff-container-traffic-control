@@ -423,7 +423,7 @@ class ContainerTrafficControlOptions {
             }
 
             // Save rules to storage
-            await browser.storage.local.set({ ctcRules: rules });
+            await browser.storage.sync.set({ ctcRules: rules });
             this.rules = rules;
 
             // Show success message

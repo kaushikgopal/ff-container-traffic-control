@@ -25,7 +25,7 @@ web-ext run
 - Go to `about:debugging` → Find extension → Click "Inspect"
 - Console logs from background script appear in DevTools
 - Extension storage viewable via DevTools → Storage tab
-- Or programmatically: `browser.storage.local.get()`
+- Or programmatically: `browser.storage.sync.get()`
 
 ### Code Validation
 ```bash
@@ -38,6 +38,8 @@ web-ext run
 # Build extension package (for distribution)
 web-ext build
 ```
+
+**Important**: Always run `web-ext lint` after making changes to verify the extension is valid and ready for distribution.
 
 ## Architecture
 
@@ -59,7 +61,7 @@ Centralized data repository (CtcRepo) for all container and rule operations:
 - **`CtcRepo.initialize(onSuccess, onError)`**: Load both containers and rules on startup
 - **`CtcRepo.getData(onSuccess, onError)`**: Get cached data without re-initializing (used by options page)
 - **`CtcRepo.loadContainers()`**: Returns `{containerMap, cookieStoreToNameMap}` with all Firefox containers
-- **`CtcRepo.loadRules()`**: Returns array of rules from `browser.storage.local.ctcRules`
+- **`CtcRepo.loadRules()`**: Returns array of rules from `browser.storage.sync.ctcRules`
 - **`CtcRepo.getContainerData()`**: Returns containers in multiple formats (Maps + arrays)
 - **`CtcRepo.getRules()`**: Returns current rules array
 
@@ -86,7 +88,7 @@ CtcRepo.getData((data) => {
 });
 
 // ❌ Wrong: Direct browser API access
-browser.storage.local.get('ctcRules');
+browser.storage.sync.get('ctcRules');
 
 // ✅ Correct: Pattern matching
 if (matchesPattern(url, pattern)) {
@@ -104,11 +106,12 @@ if (new RegExp(pattern).test(url)) {
 2. **Options page changes**: Use existing validation methods, extend don't replace
 3. **New features**: Add to CtcRepo if data-related, maintain separation of concerns
 4. **Pattern changes**: Update both `matchesPattern()` and validation in options.js
+5. **Testing**: Always run `web-ext lint` after changes to catch errors before distribution
 
 ### Options Page Architecture
 The options page uses a class-based approach (`ContainerTrafficControlOptions`) with these key patterns:
 - Data loading via `CtcRepo.getData()` (consumes cached data from background script)
-- Rule storage in `browser.storage.local` with key `'ctcRules'`
+- Rule storage in `browser.storage.sync` with key `'ctcRules'`
 - Table-based UI with dynamic row creation/deletion
 - Real-time validation for dual-mode URL patterns and rule conflicts
 - Rules structure: `{containerName, action, urlPattern, highPriority}`
@@ -211,7 +214,7 @@ function matchesPattern(url, pattern) {
 
 ### Storage Schema
 ```javascript
-// browser.storage.local structure
+// browser.storage.sync structure
 {
   "ctcRules": [
     {
@@ -228,7 +231,7 @@ function matchesPattern(url, pattern) {
 - `browser.contextualIdentities.*` - Container management
 - `browser.tabs.create({cookieStoreId})` - Open tabs in specific containers
 - `browser.webRequest.*` - Intercept and modify web requests
-- `browser.storage.local.*` - Persist extension settings
+- `browser.storage.sync.*` - Persist and sync extension settings across devices
 
 ### Extension Structure
 This is a Manifest v3 Firefox extension with:
