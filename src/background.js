@@ -8,10 +8,42 @@ browser.webRequest.onBeforeRequest.addListener(
     ["blocking"]
 );
 
-// Track HTTP redirects for debugging
+// Track HTTP redirects and re-evaluate container rules
 browser.webRequest.onBeforeRedirect.addListener(
-    (details) => {
+    async (details) => {
         ctcConsole.log(`HTTP redirect: ${details.url} -> ${details.redirectUrl}`);
+
+        // Re-evaluate container rules for the redirect destination
+        try {
+            const currentCookieStoreId = await getCurrentContainer(details.tabId);
+            const { cookieStoreToNameMap } = CtcRepo.getContainerData();
+            const currentContainerName = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
+
+            // Evaluate target container for redirect destination
+            const targetCookieStoreId = evaluateContainer(details.redirectUrl, currentCookieStoreId);
+            const targetContainerName = cookieStoreToNameMap.get(targetCookieStoreId) || 'No Container';
+
+            ctcConsole.log(`Re-evaluating redirect ${details.redirectUrl} [${currentContainerName} -> ${targetContainerName}]`);
+
+            // Switch containers if needed
+            if (currentCookieStoreId !== targetCookieStoreId) {
+                ctcConsole.info(`Container switch on redirect: ${currentContainerName} → ${targetContainerName} for ${details.redirectUrl}`);
+
+                // Create new tab in target container
+                const newTab = await browser.tabs.create({
+                    url: details.redirectUrl,
+                    cookieStoreId: targetCookieStoreId,
+                    index: details.tabId >= 0 ? undefined : 0
+                });
+
+                // Close original tab if it exists
+                if (details.tabId >= 0) {
+                    browser.tabs.remove(details.tabId);
+                }
+            }
+        } catch (error) {
+            ctcConsole.error('Error re-evaluating redirect:', error);
+        }
     },
     { urls: ["<all_urls>"], types: ["main_frame"] }
 );

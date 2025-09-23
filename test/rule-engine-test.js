@@ -149,6 +149,34 @@ test('Rule Order - First rule wins when same priority', () => {
     assertEqual(result, 'Personal', 'First rule should win when same priority');
 });
 
+// Test 7: HTTP Redirect scenarios (simulating redirect URL evaluation)
+test('HTTP Redirect - Boot from restricted container on redirect destination', () => {
+    const rules = [
+        createRule('Personal', 'allow_only', 'www.google.com'),  // Allow Google redirect URLs
+        createRule('Personal', 'allow_only', 'mail.google.com') // Allow Gmail
+    ];
+    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+
+    // First: Google redirect URL is allowed in Personal container
+    const redirectResult = evaluateContainerForUrl('https://www.google.com/url?q=https://addons.mozilla.org/', 'Personal', rules, containerMap);
+    assertEqual(redirectResult, 'Personal', 'Should stay in Personal for Google redirect URL');
+
+    // Second: Final destination should boot from restricted container
+    const finalResult = evaluateContainerForUrl('https://addons.mozilla.org/en-US/firefox/', 'Personal', rules, containerMap);
+    assertEqual(finalResult, 'No Container', 'Should be booted from Personal container to No Container for final destination');
+});
+
+test('HTTP Redirect - Allow rule should not boot from container', () => {
+    const rules = [
+        createRule('Personal', 'allow', 'github.com')  // Regular allow rule (not restricted)
+    ];
+    const containerMap = new Map([['Personal', 'personal-id'], ['Work', 'work-id']]);
+
+    // Should stay in Personal even for non-matching URLs (allow rules are not restrictive)
+    const result = evaluateContainerForUrl('https://addons.mozilla.org/', 'Personal', rules, containerMap);
+    assertEqual(result, 'Personal', 'Should stay in Personal container with allow rules');
+});
+
 // Summary
 console.log('\n' + '=' .repeat(60));
 console.log(`📊 Test Results: ${passCount}/${testCount} tests passed`);

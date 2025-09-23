@@ -16,6 +16,7 @@ function createCtcConsole() {
 
         // Debug-controlled methods (only active when DEBUG is true)
         log: DEBUG ? console.log.bind(console, '[CTC]') : () => {},
+        table: DEBUG ? console.table.bind(console) : undefined,
     };
 }
 
