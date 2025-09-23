@@ -24,27 +24,27 @@ CTC uses a simple preference system:
 
 ### Allow Rules (Open Containers)
 - Container accepts specified URLs **plus any others**
-- Example: Social container allows `.*\.(facebook|twitter)\.com` but you can still browse other sites in it
+- Example: Social container allows `facebook.com` but you can still browse other sites in it
 
 ### Allow Only Rules (Restricted Containers)
 - Container **ONLY** accepts specified URLs
-- Example: Work container only allows `.*\.company\.com` - clicking other links moves you out
+- Example: Work container only allows `company.com` - clicking other links moves you out
 - **Important**: A container cannot mix "Allow" and "Allow Only" rules
 
 ## Example Scenarios
 
 **Scenario 1: Stay in Current Container**
 - You're in Personal container browsing GitHub
-- Personal container has: Allow `.*\.github\.com`
+- Personal container has: Allow `github.com`
 - Result: Stay in Personal (current container preference)
 
 **Scenario 2: High Priority Selection**
 - You're in No Container and click a GitHub link
-- Rules: Work (Allow `.*\.github\.com`, HIGH priority), Personal (Allow `.*\.github\.com`, NORMAL)
+- Rules: Work (Allow `github.com`, HIGH priority), Personal (Allow `github.com`, NORMAL)
 - Result: Open in Work container (high priority wins)
 
 **Scenario 3: Restricted Container Boot-Out**
-- You're in Work container (Allow Only `.*\.work\.com`)
+- You're in Work container (Allow Only `work.com`)
 - You click a Facebook link
 - Result: Move to container that allows Facebook, or No Container if none match
 
@@ -58,18 +58,36 @@ Install from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon
 2. Add rules with:
    - **Container**: Which container the rule applies to
    - **Action**: "Allow" (open container) or "Allow Only" (restricted container)
-   - **URL Pattern**: Regex pattern to match URLs (e.g., `.*\.google\.com`)
+   - **URL Pattern**: Simple domain or advanced regex pattern (see examples below)
    - **High Priority**: Give this rule precedence over others
 3. Click "Save Rules"
 
-### Pattern Examples
+## URL Patterns
 
-- `.*\.google\.com` - All Google sites
-- `.*\.(facebook|twitter|instagram)\.com` - Social media sites
-- `mail\..*` - Any site starting with "mail"
-- `.*\.company\.com` - Your company's sites
+CTC supports two pattern modes for maximum flexibility:
 
-**Privacy Tip**: Avoid wildcard patterns like `.*` - use specific patterns when possible.
+### Simple Patterns (Recommended)
+Just type the domain or URL part you want to match:
+
+- `github.com` - Matches any URL containing "github.com"
+- `mail.google.com` - Matches Gmail URLs
+- `facebook.com` - Matches Facebook URLs
+- `company.com` - Matches your company's sites
+
+### Advanced Patterns (Regex)
+For complex matching, wrap patterns in forward slashes:
+
+- `/.*\.google\.com/` - All Google subdomains (drive, mail, etc.)
+- `/.*\.(facebook|twitter|instagram)\.com/` - Multiple social media sites
+- `/^https:\/\/github\.com\/myusername/` - Only your GitHub repositories
+- `/mail\..*/` - Any site starting with "mail."
+
+### Which Should You Use?
+
+- **Simple patterns** for most use cases - easier and more reliable
+- **Advanced patterns** when you need precise control or complex matching
+
+**Privacy Tip**: Use specific patterns when possible to maintain container isolation.
 
 # Development
 

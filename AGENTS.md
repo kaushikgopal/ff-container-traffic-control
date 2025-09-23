@@ -1,4 +1,4 @@
-This file provides guidance to AI coding agents like Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents like Claude Code (claude.ai/code), Cursor AI, GitHub Copilot, and other AI coding assistants when working with code in this repository.
 
 ## Project Overview
 Container Traffic Control is a Firefox extension that automatically manages container routing based on user-defined rules. It leverages Firefox's Multi-Account Containers and Contextual Identities API.
@@ -30,34 +30,88 @@ web-ext run
 
 ### Code Validation
 ```bash
-# Check JavaScript syntax (no build process required - pure extension)
-# Manual testing via web-ext is the primary validation method
+# Check JavaScript syntax and extension manifest
 web-ext lint src/
+
+# Run extension with auto-reload for testing
+cd src/ && web-ext run
+
+# Build extension package (for distribution)
+cd src/ && web-ext build
 ```
 
 ## Architecture
 
 ### Core Components
-- **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage
-- **utils.js**: Shared utilities (console logging, container loading, rule loading, pattern matching)
+- **manifest.json**: Extension configuration with permissions for webRequest, tabs, cookies, contextualIdentities, storage, icons
+- **utils.js**: Shared utilities (console logging, pattern matching)
+- **ctc-repository.js**: Centralized data management (CtcRepo) for containers and rules
 - **background.js**: Main extension logic for handling web requests and container routing
 - **options.html/js/css**: Complete settings UI with rule management table interface
+- **icons/**: High-quality extension icons (16px, 32px, 48px, 96px)
 
 ### Shared Utilities (utils.js)
 Common functions used by both background and options scripts:
-- **`loadContainers()`**: Returns `{containerMap, cookieStoreToNameMap}` with all Firefox containers
-- **`loadRules()`**: Returns array of rules from `browser.storage.local.ctcRules`
-- **`matchesPattern(url, pattern)`**: URL regex matching with error handling
-- **`ctcConsole`**: Consistent logging with debug control (`[CTC]` prefix)
+- **`ctcConsole`**: Consistent logging with debug control (`[CTC]` prefix, DEBUG flag controlled)
+- **`matchesPattern(url, pattern)`**: Dual-mode URL pattern matching with error handling
 
-**Important**: utils.js must be loaded before other scripts in manifest.json
+### Data Management (ctc-repository.js)
+Centralized data repository (CtcRepo) for all container and rule operations:
+- **`CtcRepo.initialize(onSuccess, onError)`**: Load both containers and rules on startup
+- **`CtcRepo.getData(onSuccess, onError)`**: Get cached data without re-initializing (used by options page)
+- **`CtcRepo.loadContainers()`**: Returns `{containerMap, cookieStoreToNameMap}` with all Firefox containers
+- **`CtcRepo.loadRules()`**: Returns array of rules from `browser.storage.local.ctcRules`
+- **`CtcRepo.getContainerData()`**: Returns containers in multiple formats (Maps + arrays)
+- **`CtcRepo.getRules()`**: Returns current rules array
+
+**Loading Strategy**: Background script owns initialization, options page consumes cached data
+
+**Important**: Script loading order in manifest.json: `utils.js` → `ctc-repository.js` → `background.js`
+
+## Development Patterns for AI Agents
+
+### Code Style and Conventions
+- Use `ctcConsole` for all logging (not `console` directly)
+- Pattern matching: Use `matchesPattern(url, pattern)` function, never implement regex matching inline
+- Data access: Always use `CtcRepo` methods, never access `browser.storage` or `browser.contextualIdentities` directly
+- Error handling: Use callback patterns provided by CtcRepo methods
+- Variable naming: Use descriptive names like `containerName`, `urlPattern`, `cookieStoreId`
+
+### Common Implementation Patterns
+```javascript
+// ✅ Correct: Use CtcRepo for data access
+CtcRepo.getData((data) => {
+    // Use data.containers and data.rules
+}, (error) => {
+    ctcConsole.error('Failed to load data:', error);
+});
+
+// ❌ Wrong: Direct browser API access
+browser.storage.local.get('ctcRules');
+
+// ✅ Correct: Pattern matching
+if (matchesPattern(url, pattern)) {
+    // Handle match
+}
+
+// ❌ Wrong: Inline regex
+if (new RegExp(pattern).test(url)) {
+    // Don't do this
+}
+```
+
+### When Making Changes
+1. **Background script changes**: Only modify rule evaluation logic, never data loading
+2. **Options page changes**: Use existing validation methods, extend don't replace
+3. **New features**: Add to CtcRepo if data-related, maintain separation of concerns
+4. **Pattern changes**: Update both `matchesPattern()` and validation in options.js
 
 ### Options Page Architecture
 The options page uses a class-based approach (`ContainerTrafficControlOptions`) with these key patterns:
-- Container loading via shared `loadContainers()` function
+- Data loading via `CtcRepo.getData()` (consumes cached data from background script)
 - Rule storage in `browser.storage.local` with key `'ctcRules'`
 - Table-based UI with dynamic row creation/deletion
-- Real-time validation for regex patterns and rule conflicts
+- Real-time validation for dual-mode URL patterns and rule conflicts
 - Rules structure: `{containerName, action, urlPattern, highPriority}`
 
 ### Rule System Overview
@@ -124,12 +178,37 @@ Container Traffic Control uses a simple preference system:
 - Rules: Work (allow: `.*\.github\.com`, HIGH, Rule #1), Personal (allow: `.*\.github\.com`, HIGH, Rule #2)
 - Result: Open in Work (first rule wins when same priority)
 
+#### URL Pattern System (Dual-Mode)
+**Simple Mode** (default): Literal string matching
+- `github.com` → matches any URL containing "github.com"
+- `mail.google.com` → matches Gmail URLs
+- User-friendly, no regex knowledge required
+
+**Regex Mode** (advanced): Full regex power when wrapped in slashes
+- `/.*\.google\.com/` → matches any Google subdomain
+- `/^https://github\.com/user/` → matches specific user's repos
+- Power users can use complex patterns
+
+**Pattern Processing:**
+```javascript
+function matchesPattern(url, pattern) {
+    if (pattern.startsWith('/') && pattern.endsWith('/')) {
+        // Regex mode: strip slashes and use as regex
+        const regexPattern = pattern.slice(1, -1);
+        return new RegExp(regexPattern).test(url);
+    } else {
+        // Literal mode: simple contains match
+        return url.includes(pattern);
+    }
+}
+```
+
 #### Rule Validation
 - **Container Consistency**: Cannot mix "allow" and "allow-only" rules in same container
 - **Invalid combination**: "Allow Only" action + "*" pattern (blocks all navigation)
-- **Pattern validation**: All URL patterns must be valid regex
+- **Pattern validation**: Regex patterns (in `/slashes/`) must be valid regex, literal patterns always valid
 - **Priority conflicts**: Multiple high-priority rules for same pattern generate warnings
-- **Wildcard Warning**: ".*" patterns generate privacy warnings but are allowed
+- **Privacy warnings**: Overly broad patterns generate warnings but are allowed
 
 ### Storage Schema
 ```javascript
@@ -139,7 +218,7 @@ Container Traffic Control uses a simple preference system:
     {
       "containerName": "Personal", // Container name or "No Container"
       "action": "allow|allow_only", // Rule enforcement type
-      "urlPattern": ".*\\.google\\.com", // Regex pattern
+      "urlPattern": "github.com", // Simple pattern or "/regex/" pattern
       "highPriority": true // Boolean for rule precedence
     }
   ]
@@ -162,6 +241,9 @@ This is a Manifest v3 Firefox extension with:
 ### Development Phases
 - **Phase 1** (Complete): Rule input, validation, and storage via options page
 - **Phase 2** (Complete): Background script implementation for actual URL routing and container enforcement
+- **Phase 3** (Complete): Code architecture optimization with CtcRepo and efficient data loading
+- **Phase 4** (Complete): Dual-mode URL pattern system (simple + regex) with user-friendly interface
+- **Phase 5** (Complete): Professional icons and visual identity
 
 ### Phase 2: URL Redirection Implementation
 
@@ -186,8 +268,8 @@ The background script (`background.js`) implements the complete URL redirection 
 **Key Functions:**
 - `evaluateContainer(url, currentCookieStoreId)` - Core rule evaluation logic
 - `handleRequest(details)` - WebRequest interceptor and tab switching
-- `loadRules()` / `loadContainers()` - Cache management and initialization
-- `matchesPattern(url, pattern)` - Regex URL matching with error handling
+- `CtcRepo.initialize()` - Background script data initialization
+- `matchesPattern(url, pattern)` - Dual-mode URL pattern matching with error handling
 
 #### Container Switching Mechanism
 When a container change is needed:
