@@ -422,15 +422,6 @@ class ContainerTrafficControlOptions {
             ctcConsole.info(successMessage);
             this.showValidationMessage(`${rules.length} rules saved successfully.`, 'success');
 
-            // Debug output: show rules in console table format
-            ctcConsole.info('Saved rules:');
-            ctcConsole.table(rules.map((rule, index) => ({
-                '#': index + 1,
-                Container: rule.containerName,
-                Action: rule.action === 'allow' ? 'Allow' : 'Allow Only',
-                'URL Pattern': rule.urlPattern,
-                'High Priority': rule.highPriority ? 'Yes' : 'No'
-            })));
 
         } catch (error) {
             ctcConsole.error('Failed to save rules:', error);

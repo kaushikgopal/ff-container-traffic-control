@@ -1,8 +1,9 @@
 // Simple Test Framework for Container Traffic Control
 // Run with: node test/simple-test.js
 
-// Import the rule engine
-const { evaluateContainerForUrl, matchesPattern } = require('../src/rule-engine.js');
+// Import the rule engine and utilities
+const { evaluateContainerForUrl } = require('../src/rule-engine.js');
+const { matchesPattern } = require('../src/utils.js');
 
 // Simple test framework
 let testCount = 0;

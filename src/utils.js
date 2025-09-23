@@ -16,12 +16,6 @@ function createCtcConsole() {
 
         // Debug-controlled methods (only active when DEBUG is true)
         log: DEBUG ? console.log.bind(console, '[CTC]') : () => {},
-
-        // Utility methods for enhanced debugging
-        table: DEBUG ? console.table.bind(console) : () => {},
-        group: DEBUG ? console.group.bind(console, '[CTC]') : () => {},
-        groupEnd: DEBUG ? console.groupEnd.bind(console) : () => {},
-        groupCollapsed: DEBUG ? console.groupCollapsed.bind(console, '[CTC]') : () => {},
     };
 }
 
@@ -67,4 +61,9 @@ if (typeof window !== 'undefined') {
     window.matchesPattern = matchesPattern;
 } else {
     globalThis.matchesPattern = matchesPattern;
+}
+
+// Export for Node.js environments (tests)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { matchesPattern };
 }
