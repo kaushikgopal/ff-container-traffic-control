@@ -72,6 +72,7 @@ CtcRepo.initialize();
 // Constants
 const EXPIRY_REDIRECT_MS = 2000; // 2 seconds
 const EXPIRY_TAB_REQUEST_MS = 1000; // 1 second
+const CLEANUP_SIZE_THRESHOLD = 100; // Clean up when Maps exceed this size
 
 // Track recent redirections to prevent loops
 const recentRedirections = new Map();
@@ -104,6 +105,18 @@ async function handleRequest(details) {
         }
         recentTabRequests.set(tabRequestKey, Date.now());
 
+        // MAINTENANCE: Clean up when Maps get large to prevent memory bloat
+        if (recentTabRequests.size > CLEANUP_SIZE_THRESHOLD ||
+            recentRedirections.size > CLEANUP_SIZE_THRESHOLD) {
+            pruneTrackingMaps();
+        }
+
+        // MAINTENANCE: Clean up when Maps get large to prevent memory bloat
+        if (recentTabRequests.size > CLEANUP_SIZE_THRESHOLD ||
+            recentRedirections.size > CLEANUP_SIZE_THRESHOLD) {
+            pruneTrackingMaps();
+        }
+
         // URL RACE CONDITIONS: Multiple tabs can compete to process same URL simultaneously
         // Prevents different tabs from creating duplicate tabs for same URL
         // Global URL-based deduplication with 2s cooldown
@@ -132,9 +145,6 @@ async function handleRequest(details) {
             // CRITICAL: Record redirect BEFORE creating tab to prevent loops
             // Must happen before tab creation to catch race conditions
             recentRedirections.set(redirectKey, Date.now());
-
-            // MAINTENANCE: Clean up memory to prevent unbounded growth
-            pruneTrackingMaps();
 
             // ATOMIC OPERATION: Create new tab in correct container
             // FAILURE MODE: If this fails, user loses navigation entirely
