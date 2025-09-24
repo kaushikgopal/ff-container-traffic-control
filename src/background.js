@@ -225,6 +225,15 @@ function evaluateContainer(url, currentCookieStoreId) {
     const { containerMap, cookieStoreToNameMap } = CtcRepo.getContainerData();
     const rules = CtcRepo.getRules();
 
+    // FAIL FAST: If CtcRepo isn't initialized, something is seriously wrong
+    if (containerMap.size <= 1) {
+        throw new Error('CtcRepo not initialized - no containers loaded');
+    }
+
+    if (!Array.isArray(rules)) {
+        throw new Error('CtcRepo rules corrupted');
+    }
+
     // Get current container name
     const currentContainerName = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
 
