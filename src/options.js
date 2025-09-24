@@ -18,8 +18,8 @@ class ContainerTrafficControlOptions {
     }
 
     initializeEventListeners() {
-        document.getElementById('addRuleBtn').addEventListener('click', () => this.addRuleRow());
-        document.getElementById('saveRulesBtn').addEventListener('click', () => this.saveRules());
+        document.getElementById('saveRulesTopBtn').addEventListener('click', () => this.saveRules());
+        document.getElementById('saveRulesBottomBtn').addEventListener('click', () => this.saveRules());
     }
 
     // BOOTSTRAP: Load container and rule data from background script
@@ -33,13 +33,8 @@ class ContainerTrafficControlOptions {
 
                 ctcConsole.info('Options page initialized with:', this.containers.length, 'containers,', this.rules.length, 'rules');
 
-                // POPULATE UI: Create table rows for existing rules
-                this.rules.forEach(rule => this.addRuleRow(rule));
-
-                // UX: Always show at least one empty row for new users
-                if (this.rules.length === 0) {
-                    this.addRuleRow();
-                }
+                // POPULATE UI: Create container groups for all containers
+                this.renderAllContainerGroups();
             },
             (error) => {
                 // RECOVERY: Extension data unavailable - likely background script crash
@@ -47,6 +42,231 @@ class ContainerTrafficControlOptions {
                 this.showValidationMessage('Failed to load extension data. Please reload the page.', 'error');
             }
         );
+    }
+
+    // NEW: Render all containers as compound rows
+    renderAllContainerGroups() {
+        this.rulesTableBody.innerHTML = '';
+
+        // Group existing rules by container
+        const rulesByContainer = {};
+        this.rules.forEach(rule => {
+            if (!rulesByContainer[rule.containerName]) {
+                rulesByContainer[rule.containerName] = [];
+            }
+            rulesByContainer[rule.containerName].push(rule);
+        });
+
+        // Render each container (including ones without rules)
+        this.containers.forEach(container => {
+            const containerRules = rulesByContainer[container.name] || [];
+            this.renderContainerGroup(container.name, containerRules);
+        });
+    }
+
+    // NEW: Render a single container group with its URL patterns
+    renderContainerGroup(containerName, existingRules = []) {
+        const containerGroup = document.createElement('div');
+        containerGroup.className = 'container-group';
+        containerGroup.dataset.containerName = containerName;
+
+        // Determine container type from existing rules
+        let containerType = 'no-rule';
+        if (existingRules.length > 0) {
+            containerType = existingRules[0].action; // All rules in container have same type
+        }
+
+        // Create container header row
+        const headerRow = this.createContainerHeaderRow(containerName, containerType);
+        containerGroup.appendChild(headerRow);
+
+        // Create URL pattern rows
+        if (existingRules.length > 0) {
+            existingRules.forEach(rule => {
+                const urlRow = this.createUrlPatternRow(rule.urlPattern, rule.highPriority, containerName);
+                containerGroup.appendChild(urlRow);
+            });
+        } else if (containerType !== 'no-rule') {
+            // Show one empty URL row for enabled containers
+            const urlRow = this.createUrlPatternRow('', false, containerName);
+            containerGroup.appendChild(urlRow);
+        }
+
+        // Add the entire group to the table
+        const groupWrapper = document.createElement('tr');
+        groupWrapper.className = 'container-group-wrapper';
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.appendChild(containerGroup);
+        groupWrapper.appendChild(cell);
+
+        this.rulesTableBody.appendChild(groupWrapper);
+    }
+
+    // NEW: Create the header row for a container
+    createContainerHeaderRow(containerName, containerType) {
+        const row = document.createElement('div');
+        row.className = 'container-header-row';
+
+        // Type dropdown
+        const typeSelect = this.createContainerTypeSelect(containerType, containerName);
+
+        // Container name
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'container-name';
+        nameSpan.textContent = containerName;
+
+        // Add URL button
+        const addUrlBtn = document.createElement('button');
+        addUrlBtn.type = 'button';
+        addUrlBtn.className = 'btn btn-secondary btn-small add-url-btn';
+        addUrlBtn.textContent = '+';
+        addUrlBtn.title = 'Add URL pattern';
+        addUrlBtn.onclick = () => this.addUrlPatternToContainer(containerName);
+
+        // Clear container button
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'btn btn-danger btn-small';
+        clearBtn.textContent = 'Clear';
+        clearBtn.title = 'Remove all URL patterns from this container';
+        clearBtn.onclick = () => this.clearContainer(containerName);
+
+        row.appendChild(typeSelect);
+        row.appendChild(nameSpan);
+        row.appendChild(addUrlBtn);
+        row.appendChild(clearBtn);
+
+        return row;
+    }
+
+    // NEW: Create a URL pattern row within a container
+    createUrlPatternRow(urlPattern = '', highPriority = false, containerName) {
+        const row = document.createElement('div');
+        row.className = 'url-pattern-row';
+
+        // URL pattern input
+        const urlInput = this.createUrlPatternInput(urlPattern);
+
+        // High priority checkbox
+        const priorityCheckbox = this.createPriorityCheckbox(highPriority);
+
+        // Delete button
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-danger btn-small';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.onclick = () => this.deleteUrlPattern(row, containerName);
+
+        row.appendChild(urlInput);
+        row.appendChild(priorityCheckbox);
+        row.appendChild(deleteBtn);
+
+        // Add validation listeners
+        urlInput.addEventListener('input', (e) => this.validateUrlPattern(e.target));
+
+        return row;
+    }
+
+    // NEW: Create type selector for container
+    createContainerTypeSelect(selectedType = 'no-rule', containerName) {
+        const select = document.createElement('select');
+        select.className = 'container-type-select';
+        select.dataset.containerName = containerName;
+
+        // Add options
+        const noRuleOption = document.createElement('option');
+        noRuleOption.value = 'no-rule';
+        noRuleOption.textContent = 'No Rule';
+        if (selectedType === 'no-rule') noRuleOption.selected = true;
+        select.appendChild(noRuleOption);
+
+        const openOption = document.createElement('option');
+        openOption.value = 'open';
+        openOption.textContent = '🌐 Open';
+        if (selectedType === 'open') openOption.selected = true;
+        select.appendChild(openOption);
+
+        const restrictedOption = document.createElement('option');
+        restrictedOption.value = 'restricted';
+        restrictedOption.textContent = '🔒 Restricted';
+        if (selectedType === 'restricted') restrictedOption.selected = true;
+        select.appendChild(restrictedOption);
+
+        // Handle type changes
+        select.addEventListener('change', (e) => this.handleContainerTypeChange(e.target));
+
+        return select;
+    }
+
+    // NEW: Handle container type changes
+    handleContainerTypeChange(typeSelect) {
+        const containerName = typeSelect.dataset.containerName;
+        const newType = typeSelect.value;
+        const containerGroup = typeSelect.closest('.container-group');
+
+        if (newType === 'no-rule') {
+            // Remove all URL pattern rows
+            const urlRows = containerGroup.querySelectorAll('.url-pattern-row');
+            urlRows.forEach(row => row.remove());
+
+            // Hide add button
+            const addBtn = containerGroup.querySelector('.add-url-btn');
+            if (addBtn) addBtn.style.display = 'none';
+        } else {
+            // Show add button
+            const addBtn = containerGroup.querySelector('.add-url-btn');
+            if (addBtn) addBtn.style.display = 'inline-block';
+
+            // Add one empty URL row if none exist
+            const existingUrlRows = containerGroup.querySelectorAll('.url-pattern-row');
+            if (existingUrlRows.length === 0) {
+                const urlRow = this.createUrlPatternRow('', false, containerName);
+                containerGroup.appendChild(urlRow);
+            }
+        }
+    }
+
+    // NEW: Add URL pattern to container
+    addUrlPatternToContainer(containerName) {
+        const containerGroup = this.rulesTableBody.querySelector(`[data-container-name="${containerName}"]`);
+        if (containerGroup) {
+            const urlRow = this.createUrlPatternRow('', false, containerName);
+            containerGroup.appendChild(urlRow);
+        }
+    }
+
+    // NEW: Delete URL pattern from container
+    deleteUrlPattern(urlRow, containerName) {
+        const containerGroup = urlRow.closest('.container-group');
+        const urlRows = containerGroup.querySelectorAll('.url-pattern-row');
+
+        if (urlRows.length > 1) {
+            urlRow.remove();
+        } else {
+            // Clear the last row instead of removing it
+            const urlInput = urlRow.querySelector('.url-pattern-input');
+            const priorityCheckbox = urlRow.querySelector('.priority-checkbox');
+            urlInput.value = '';
+            priorityCheckbox.checked = false;
+            this.setInputValidation(urlInput, '', '');
+        }
+    }
+
+    // NEW: Clear all URL patterns from container
+    clearContainer(containerName) {
+        const containerGroup = this.rulesTableBody.querySelector(`[data-container-name="${containerName}"]`);
+        if (containerGroup) {
+            const urlRows = containerGroup.querySelectorAll('.url-pattern-row');
+            urlRows.forEach(row => row.remove());
+
+            // Reset type to no-rule
+            const typeSelect = containerGroup.querySelector('.container-type-select');
+            if (typeSelect) {
+                typeSelect.value = 'no-rule';
+                this.handleContainerTypeChange(typeSelect);
+            }
+        }
     }
 
     addRuleRow(existingRule = null) {
@@ -312,25 +532,39 @@ class ContainerTrafficControlOptions {
     }
 
     collectRulesFromTable() {
-        const rows = this.rulesTableBody.querySelectorAll('.rule-row');
         const rules = [];
 
-        // Collect all rules from single table
-        rows.forEach(row => {
-            const containerName = row.querySelector('.container-select').value.trim();
-            const urlPattern = row.querySelector('.url-pattern-input').value.trim();
-            const highPriority = row.querySelector('.priority-checkbox').checked;
-            const action = row.querySelector('.type-select').value;
+        // Collect rules from all container groups
+        const containerGroups = this.rulesTableBody.querySelectorAll('.container-group');
 
-            // Only include rules with all required fields
-            if (containerName && urlPattern) {
-                rules.push({
-                    containerName,
-                    action,
-                    urlPattern,
-                    highPriority
-                });
+        containerGroups.forEach(containerGroup => {
+            const containerName = containerGroup.dataset.containerName;
+            const typeSelect = containerGroup.querySelector('.container-type-select');
+            const action = typeSelect.value;
+
+            // Skip containers with no-rule type
+            if (action === 'no-rule') {
+                return;
             }
+
+            // Collect URL patterns from this container
+            const urlRows = containerGroup.querySelectorAll('.url-pattern-row');
+            urlRows.forEach(urlRow => {
+                const urlInput = urlRow.querySelector('.url-pattern-input');
+                const priorityCheckbox = urlRow.querySelector('.priority-checkbox');
+                const urlPattern = urlInput.value.trim();
+                const highPriority = priorityCheckbox.checked;
+
+                // Only include rules with valid URL patterns
+                if (urlPattern) {
+                    rules.push({
+                        containerName,
+                        action,
+                        urlPattern,
+                        highPriority
+                    });
+                }
+            });
         });
 
         return rules;
@@ -400,10 +634,10 @@ class ContainerTrafficControlOptions {
             }
         });
 
-        // WARN: Multiple high-priority rules - behavior is rule-order dependent
+        // WARN: Multiple high-priority rules - behavior is implementation dependent
         Object.entries(highPriorityPatterns).forEach(([pattern, ruleNumbers]) => {
             if (ruleNumbers.length > 1) {
-                warnings.push(`Pattern "${pattern}" has multiple high priority rules (${ruleNumbers.join(', ')}). Precedence follows rule order.`);
+                warnings.push(`Pattern "${pattern}" has multiple high priority rules (${ruleNumbers.join(', ')}). Only one will be used.`);
             }
         });
 

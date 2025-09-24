@@ -383,3 +383,74 @@ input[type="checkbox"] {
     font-size: 16px;
     margin-bottom: 20px;
 }
+
+/* Container Group Styles */
+.container-group-wrapper {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.container-group-wrapper:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.container-group {
+    padding: 8px 0;
+}
+
+.container-header-row {
+    display: grid;
+    grid-template-columns: 120px 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 16px;
+    font-weight: 500;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 4px;
+}
+
+.container-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.container-type-select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: white;
+}
+
+.url-pattern-row {
+    display: grid;
+    grid-template-columns: 2fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 4px 16px 4px 40px;
+    margin-bottom: 4px;
+}
+
+.url-pattern-row .url-pattern-input {
+    margin: 0;
+}
+
+.url-pattern-row .priority-checkbox {
+    justify-self: center;
+}
+
+.add-url-btn {
+    min-width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Hide add button for no-rule containers */
+.container-group[data-type="no-rule"] .add-url-btn {
+    display: none;
+}

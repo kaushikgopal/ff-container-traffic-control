@@ -15,8 +15,7 @@
             <div class="validation-messages" id="validationMessages"></div>
 
             <div class="button-group">
-                <button id="addRuleBtn" class="btn btn-secondary">Add Rule</button>
-                <button id="saveRulesBtn" class="btn btn-primary">Save Rules</button>
+                <button id="saveRulesTopBtn" class="btn btn-primary">Save Rules</button>
             </div>
 
             <table id="rulesTable" class="rules-table">
@@ -32,6 +31,10 @@
                 <tbody id="rulesTableBody">
                 </tbody>
             </table>
+
+            <div class="button-group">
+                <button id="saveRulesBottomBtn" class="btn btn-primary">Save Rules</button>
+            </div>
         </div>
 
         <div class="help-section">
@@ -76,7 +79,7 @@
             <ol>
                 <li><strong>Stay Put:</strong> If your current container accepts the URL, you stay there</li>
                 <li><strong>Restricted Containers:</strong> If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out</li>
-                <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win, then first matching rule</li>
+                <li><strong>Finding a Match:</strong> When switching containers, high-priority rules win first</li>
                 <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
             </ol>
         </div>
