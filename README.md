@@ -20,7 +20,7 @@ CTC uses a simple preference system:
 
 1. **Stay Put**: If your current container accepts the URL, you stay there
 2. **Restricted Containers**: If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out
-3. **Finding a Match**: When switching containers, high-priority rules win, then first matching rule
+3. **Finding a Match**: When switching containers, high-priority rules win first
 4. **Default**: If no rules match, opens in "No Container" (regular browsing)
 
 ## Rule Types
@@ -58,12 +58,18 @@ Install from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon
 ## Setting Up Rules
 
 1. Right-click the CTC icon → "Manage Extension" → "Options"
-2. Add rules with:
-   - **Container**: Which container the rule applies to
-   - **Action**: "Allow" (open container) or "Allow Only" (restricted container)
-   - **URL Pattern**: Simple domain or advanced regex pattern (see examples below)
-   - **High Priority**: Give this rule precedence over others
-3. Click "Save Rules"
+2. Configure containers:
+   - **Type**: Choose "No Rule" (disabled), "🌐 Open", or "🔒 Restricted" for each container
+   - **URL Patterns**: Add multiple URL patterns per container using the "+" button
+   - **High Priority**: Set priority per URL pattern to override conflicts
+   - **Clear**: Remove all URL patterns from a container
+3. Click "Save Rules" (available at top and bottom of the page)
+
+### Container Management
+- **All containers** are shown by default, even unused ones
+- **No Rule**: Container is inactive (no URL patterns will match)
+- **🌐 Open**: Container accepts specified URLs plus any others
+- **🔒 Restricted**: Container ONLY accepts specified URLs
 
 ## URL Patterns
 
