@@ -132,7 +132,8 @@ const CtcRepo = {
     },
 
     /**
-     * Initialize both containers and rules
+     * BOOTSTRAP: Initialize both containers and rules with failure tracking
+     * CRITICAL: Extension is non-functional if this fails
      * @param {Function} onSuccess - Optional success callback with {containers, rules}
      * @param {Function} onError - Optional error callback
      */
@@ -146,12 +147,19 @@ const CtcRepo = {
                 rules: this.rules
             };
 
-            ctcConsole.info('Extension initialized');
+            // SUCCESS: Reset failure flag
+            this._initializationFailed = false;
+            ctcConsole.info('Extension initialized successfully');
 
             if (onSuccess) onSuccess(result);
             return result;
         } catch (error) {
-            ctcConsole.error('Failed to initialize:', error);
+            // CRITICAL FAILURE: Mark extension as non-functional
+            this._initializationFailed = true;
+            ctcConsole.error('CRITICAL: Extension initialization failed - rules will not work');
+            ctcConsole.error('Error details:', error);
+            ctcConsole.error('User action: Try reloading the extension or restarting Firefox');
+
             if (onError) onError(error);
             else throw error;
         }
