@@ -1,14 +1,18 @@
 // Container Traffic Control Background Script
 // Handles URL redirection based on user-defined rules
 
-// Event listeners
+// CRITICAL: Main navigation interceptor - all page loads go through this
+// Using "blocking" mode means we can cancel/redirect requests before they complete
+// FAILURE MODE: If this crashes, all navigation breaks
 browser.webRequest.onBeforeRequest.addListener(
     handleRequest,
     { urls: ["<all_urls>"], types: ["main_frame"] },
     ["blocking"]
 );
 
-// Track HTTP redirects and re-evaluate container rules
+// EDGE CASE: Handle HTTP redirects (301/302) that bypass onBeforeRequest
+// Example: http://github.com -> https://github.com auto-redirect
+// Without this, users get stuck in wrong containers after redirects
 browser.webRequest.onBeforeRedirect.addListener(
     async (details) => {
         ctcConsole.log(`HTTP redirect: ${details.url} -> ${details.redirectUrl}`);
@@ -66,41 +70,47 @@ browser.contextualIdentities.onRemoved.addListener(() => {
 CtcRepo.initialize();
 
 // Constants
-const REDIRECT_COOLDOWN_MS = 2000; // 2 seconds
-const REQUEST_COOLDOWN_MS = 1000; // 1 second
+const EXPIRY_REDIRECT_MS = 2000; // 2 seconds
+const EXPIRY_TAB_REQUEST_MS = 1000; // 1 second
 
 // Track recent redirections to prevent loops
 const recentRedirections = new Map();
 
-// Track active tab requests to prevent duplicates
-const activeTabRequests = new Map();
+// Prevents duplicate processing of the same navigation request
+const recentTabRequests = new Map();
 
 // Main request handler
 async function handleRequest(details) {
     try {
-        // Skip privileged URLs
+        // SAFETY: Never redirect browser internal URLs
+        // FAILURE MODE: Redirecting about:config could break Firefox
         if (isPrivilegedURL(details.url)) {
             return {};
         }
 
-        // Skip requests with tabId -1 that are likely HTTP redirect artifacts
+        // EDGE CASE: tabId -1 means "no tab" - usually HTTP redirect artifacts
+        // Processing these creates phantom tabs that confuse users
         if (details.tabId === -1) {
             return {};
         }
 
-        // Check for duplicate tab requests to prevent multiple processing
+        // CRITICAL: Firefox fires multiple webRequest events for same navigation
+        // Causes: HTTPS upgrades, service workers, security redirects, race conditions
+        // FAILURE MODE: Without deduplication, creates multiple tabs for one click
         const tabRequestKey = `${details.tabId}-${details.url}`;
-        const lastTabRequest = activeTabRequests.get(tabRequestKey);
-        if (lastTabRequest && Date.now() - lastTabRequest < REQUEST_COOLDOWN_MS) {
-            return {};
+        const lastTabRequest = recentTabRequests.get(tabRequestKey);
+        if (lastTabRequest && Date.now() - lastTabRequest < EXPIRY_TAB_REQUEST_MS) {
+            return {}; // Skip duplicate
         }
-        activeTabRequests.set(tabRequestKey, Date.now());
+        recentTabRequests.set(tabRequestKey, Date.now());
 
-        // Check for recent redirection to prevent loops (URL-based)
+        // CRITICAL: Prevent infinite redirect loops
+        // Causes: Conflicting rules, race conditions, buggy rule evaluation
+        // FAILURE MODE: Infinite loop creates hundreds of tabs, crashes browser
         const redirectKey = details.url;
         const lastRedirect = recentRedirections.get(redirectKey);
-        if (lastRedirect && Date.now() - lastRedirect < REDIRECT_COOLDOWN_MS) {
-            return {};
+        if (lastRedirect && Date.now() - lastRedirect < EXPIRY_REDIRECT_MS) {
+            return {}; // Skip - we just redirected this URL recently
         }
 
         // Get current container
@@ -115,54 +125,63 @@ async function handleRequest(details) {
         // Log evaluation result for debugging
         ctcConsole.log(`Evaluating ${details.url} [${currentContainerName} -> ${targetContainerName}]`);
 
-        // Switch if needed
+        // DECISION POINT: Container switch required?
         if (currentCookieStoreId !== targetCookieStoreId) {
             ctcConsole.info(`Container switch: ${currentContainerName} → ${targetContainerName} for ${details.url}`);
 
-            // Record this redirection
+            // CRITICAL: Record redirect BEFORE creating tab to prevent loops
+            // Must happen before tab creation to catch race conditions
             recentRedirections.set(redirectKey, Date.now());
 
-            // Clean up old entries
+            // MAINTENANCE: Clean up memory to prevent unbounded growth
             pruneTrackingMaps();
 
-            // Create new tab in target container
+            // ATOMIC OPERATION: Create new tab in correct container
+            // FAILURE MODE: If this fails, user loses navigation entirely
             const newTab = await browser.tabs.create({
                 url: details.url,
                 cookieStoreId: targetCookieStoreId,
                 index: details.tabId >= 0 ? undefined : 0
             });
 
-            // Close original tab if it exists
+            // CLEANUP: Remove original tab that's in wrong container
+            // EDGE CASE: tabId < 0 means new tab, nothing to close
             if (details.tabId >= 0) {
                 browser.tabs.remove(details.tabId);
             }
 
-            // Cancel original request
+            // CRITICAL: Cancel original request to prevent double-load
             return { cancel: true };
         }
 
         return {};
     } catch (error) {
+        // RECOVERY: Never crash the entire navigation system
+        // FAILURE MODE: Throwing here breaks all page loads for user
         ctcConsole.error('Error handling request:', error);
-        return {};
+        return {}; // Allow navigation to proceed normally
     }
 }
 
-// Clean up old tracking entries
+// MEMORY MANAGEMENT: Prevent unbounded Map growth
+// PROBLEM: Heavy users can accumulate thousands of entries over time
+// TRIGGER: Only called during container switches (not regular browsing)
 function pruneTrackingMaps() {
     const now = Date.now();
 
-    // Clean up redirection tracking
+    // Clean expired redirect tracking
+    // PURPOSE: Remove old URLs that are no longer at risk of loops
     for (const [key, timestamp] of recentRedirections.entries()) {
-        if (now - timestamp > REDIRECT_COOLDOWN_MS) {
+        if (now - timestamp > EXPIRY_REDIRECT_MS) {
             recentRedirections.delete(key);
         }
     }
 
-    // Clean up tab request tracking
-    for (const [key, timestamp] of activeTabRequests.entries()) {
-        if (now - timestamp > REQUEST_COOLDOWN_MS) {
-            activeTabRequests.delete(key);
+    // Clean expired request deduplication tracking
+    // PURPOSE: Remove old tab-URL combinations that won't see duplicates
+    for (const [key, timestamp] of recentTabRequests.entries()) {
+        if (now - timestamp > EXPIRY_TAB_REQUEST_MS) {
+            recentTabRequests.delete(key);
         }
     }
 }
@@ -175,16 +194,19 @@ function isPrivilegedURL(url) {
            url.startsWith('resource:');
 }
 
-// Get current container for a tab
+// LOOKUP: Determine which container a tab is currently in
+// EDGE CASE: tabId < 0 means "new tab" or system-generated navigation
 async function getCurrentContainer(tabId) {
-    if (tabId < 0) return 'firefox-default'; // New tab
+    if (tabId < 0) return 'firefox-default'; // New tab has no container
 
     try {
         const tab = await browser.tabs.get(tabId);
+        // FALLBACK: Some tabs have no cookieStoreId (private browsing, etc)
         return tab.cookieStoreId || 'firefox-default';
     } catch (error) {
+        // RECOVERY: Tab might have been closed while we were processing
         ctcConsole.error('Failed to get tab info:', error);
-        return 'firefox-default';
+        return 'firefox-default'; // Safe default
     }
 }
 

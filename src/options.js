@@ -1,10 +1,15 @@
 // Container Traffic Control Options Page
 // Handles rule management, validation, and storage
 
+// MISSION CONTROL: User interface for managing container routing rules
+// FAILURE MODE: If this crashes, users can't modify rules (extension becomes read-only)
 class ContainerTrafficControlOptions {
     constructor() {
-        this.containers = [];
-        this.rules = [];
+        // STATE: Core data structures that mirror background script
+        this.containers = [];  // Available Firefox containers
+        this.rules = [];      // User-defined routing rules
+
+        // DOM REFERENCES: Critical UI elements
         this.rulesTableBody = document.getElementById('rulesTableBody');
         this.validationMessages = document.getElementById('validationMessages');
 
@@ -17,25 +22,28 @@ class ContainerTrafficControlOptions {
         document.getElementById('saveRulesBtn').addEventListener('click', () => this.saveRules());
     }
 
+    // BOOTSTRAP: Load container and rule data from background script
+    // CRITICAL: This must succeed or user can't configure anything
     initializeData() {
         CtcRepo.getData(
             (data) => {
-                // Success callback
+                // SUCCESS PATH: Data loaded successfully
                 this.containers = data.containers.containerArray;
                 this.rules = data.rules;
 
                 ctcConsole.info('Options page initialized with:', this.containers.length, 'containers,', this.rules.length, 'rules');
 
-                // Display existing rules in the appropriate tables
+                // POPULATE UI: Create table rows for existing rules
                 this.rules.forEach(rule => this.addRuleRow(rule));
 
+                // UX: Always show at least one empty row for new users
                 if (this.rules.length === 0) {
-                    // Add one empty rule by default
                     this.addRuleRow();
                 }
             },
             (error) => {
-                // Error callback
+                // RECOVERY: Extension data unavailable - likely background script crash
+                // FAILURE MODE: User sees broken UI, thinks extension is broken
                 this.showValidationMessage('Failed to load extension data. Please reload the page.', 'error');
             }
         );
@@ -328,11 +336,15 @@ class ContainerTrafficControlOptions {
         return rules;
     }
 
+    // VALIDATION ENGINE: Comprehensive rule safety checks
+    // PURPOSE: Prevent user from creating rules that break navigation
     validateAllRules(rules) {
-        const errors = [];
-        const warnings = [];
+        const errors = [];   // BLOCKING: Must fix these to save
+        const warnings = []; // ADVISORY: Should consider fixing
 
-        // Check that containers don't mix open and restricted rules
+        // CRITICAL CHECK: Container rule consistency
+        // PROBLEM: Mixing "open" and "restricted" rules creates undefined behavior
+        // EXAMPLE: Work container with both "allow github.com" and "only allow work.com"
         const containerRules = {};
         rules.forEach((rule, index) => {
             if (!containerRules[rule.containerName]) {
@@ -346,26 +358,28 @@ class ContainerTrafficControlOptions {
             containerRules[rule.containerName].ruleNumbers.push(index + 1);
         });
 
-        // Validate container rule consistency
+        // ENFORCE: No mixed rule types per container
         for (const [container, counts] of Object.entries(containerRules)) {
             if (counts.open > 0 && counts.restricted > 0) {
                 errors.push(`Container "${container}" cannot mix 'open' and 'restricted' rules. All rules for a container must be the same type.`);
             }
         }
 
-        // Check each rule for validation issues
+        // INDIVIDUAL RULE VALIDATION: Check each rule for safety issues
         rules.forEach((rule, index) => {
-            // Check for invalid "Restricted" + "*" combination
+            // CRITICAL: Prevent rules that block ALL navigation
+            // FAILURE MODE: "Restricted" + "*" = user can't browse anywhere
             if (rule.action === 'restricted' && rule.urlPattern === '*') {
                 errors.push(`Rule ${index + 1}: "Restricted" with "*" pattern blocks all navigation`);
             }
 
-            // Warn about wildcard patterns
+            // PRIVACY WARNING: Overly broad patterns leak browsing data
             if (rule.urlPattern === '.*') {
                 warnings.push(`Rule ${index + 1}: Wildcard pattern '.*' reduces privacy - use specific patterns when possible`);
             }
 
-            // Validate regex pattern
+            // SYNTAX CHECK: Ensure regex patterns are valid
+            // FAILURE MODE: Invalid regex crashes rule evaluation
             try {
                 new RegExp(rule.urlPattern);
             } catch (error) {
@@ -373,7 +387,8 @@ class ContainerTrafficControlOptions {
             }
         });
 
-        // Check for high priority conflicts
+        // PRECEDENCE ANALYSIS: Check for conflicting high-priority rules
+        // ISSUE: Multiple high-priority rules for same pattern create ambiguity
         const highPriorityPatterns = {};
         rules.forEach((rule, index) => {
             if (rule.highPriority) {
@@ -385,6 +400,7 @@ class ContainerTrafficControlOptions {
             }
         });
 
+        // WARN: Multiple high-priority rules - behavior is rule-order dependent
         Object.entries(highPriorityPatterns).forEach(([pattern, ruleNumbers]) => {
             if (ruleNumbers.length > 1) {
                 warnings.push(`Pattern "${pattern}" has multiple high priority rules (${ruleNumbers.join(', ')}). Precedence follows rule order.`);
@@ -394,30 +410,33 @@ class ContainerTrafficControlOptions {
         return { errors, warnings };
     }
 
+    // COMMIT: Save user rules to extension storage
+    // CRITICAL: This is the only way users can persist their configuration
     async saveRules() {
         this.clearValidationMessages();
 
         try {
-            // Collect rules from the table
+            // HARVEST: Extract rules from DOM table
             const rules = this.collectRulesFromTable();
 
+            // EDGE CASE: Empty table - nothing to save
             if (rules.length === 0) {
                 this.showValidationMessage('No valid rules to save.', 'warning');
                 return;
             }
 
-            // Validate all rules
+            // SAFETY CHECK: Run comprehensive validation
             const { errors, warnings } = this.validateAllRules(rules);
 
-            // Show errors and prevent saving if any exist
+            // BLOCKING: Don't save broken rules that would crash navigation
             if (errors.length > 0) {
                 const errorMessage = 'Validation errors:\n' + errors.join('\n');
                 this.showValidationMessage(errorMessage, 'error');
                 ctcConsole.error('Validation errors:', errors);
-                return;
+                return; // ABORT: User must fix errors first
             }
 
-            // Show warnings but allow saving
+            // ADVISORY: Show warnings but allow save to proceed
             if (warnings.length > 0) {
                 warnings.forEach(warning => {
                     ctcConsole.warn(warning);
@@ -425,11 +444,12 @@ class ContainerTrafficControlOptions {
                 this.showValidationMessage(`Saved with warnings. Check console for details.`, 'warning');
             }
 
-            // Save rules to storage
+            // PERSIST: Write rules to Firefox sync storage
+            // CRITICAL: This triggers background script to reload rules
             await browser.storage.sync.set({ ctcRules: rules });
-            this.rules = rules;
+            this.rules = rules; // Update local cache
 
-            // Show success message
+            // SUCCESS FEEDBACK: Confirm save to user
             const successMessage = `${rules.length} rules saved successfully`;
             ctcConsole.info(successMessage);
             this.showValidationMessage(`${rules.length} rules saved successfully.`, 'success');
@@ -448,6 +468,8 @@ class ContainerTrafficControlOptions {
 
 
         } catch (error) {
+            // RECOVERY: Save operation failed - could be storage quota, network, etc
+            // FAILURE MODE: User loses all their configuration work
             ctcConsole.error('Failed to save rules:', error);
             this.showValidationMessage('Failed to save rules. Please try again.', 'error');
         }
