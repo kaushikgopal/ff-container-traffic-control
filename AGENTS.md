@@ -74,10 +74,11 @@ console.log('message'); // Don't do this
 1. **Stay Put**: If current container accepts URL, stay there
 2. **Restriction Check**: If in "restricted" container and URL doesn't match, must leave
 3. **Find Matches**: Get all containers with rules matching URL
-4. **Priority Selection**: High-priority rules win, then first rule by order
+4. **Priority Selection**: High-priority rules win first (per URL pattern)
 5. **Default**: No matches → "No Container"
 
 ### Rule Types
+- **"no-rule"**: Container is disabled (no URL patterns active)
 - **"open"** action: Container accepts these URLs plus any others
 - **"restricted"** action: Container ONLY accepts these URLs
 - **Constraint**: A container cannot mix "open" and "restricted" rules
@@ -104,10 +105,12 @@ The codebase includes production-ready safeguards:
 - Never change data loading patterns
 - All navigation goes through `handleRequest()` function
 
-### Options Page Changes
-- Extend existing validation methods
-- Follow table-based UI patterns
-- Rule structure: `{containerName, action, urlPattern, highPriority}`
+### Options Page Changes (Container-Centric UI)
+- **UI Structure**: Container groups with multiple URL patterns per container
+- **Type Options**: "no-rule", "open", "restricted" (no-rule disables container)
+- **Data Collection**: Use `collectRulesFromTable()` to extract rules from container groups
+- **Rendering**: Use `renderAllContainerGroups()` to display containers with grouped URLs
+- **Rule structure**: `{containerName, action, urlPattern, highPriority}`
 
 ### Adding Features
 - Data-related features: Add to CtcRepo
