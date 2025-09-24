@@ -1,7 +1,7 @@
 // Shared utilities for Container Traffic Control
 // This file provides common functions used across background and options scripts
 
-const DEBUG = true; // Could be made configurable via storage in the future
+const DEBUG = false; // Could be made configurable via storage in the future
 
 /**
  * Creates bound console methods with CTC formatting and debug control
