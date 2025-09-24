@@ -2,6 +2,9 @@
 
 Container Traffic Control (CTC) is a Firefox extension that automatically manages which container websites open in, based on rules you define. It works with Firefox's [Multi-Account Containers](https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/) feature to provide enhanced privacy and organization.
 
+<img width="1450" height="2543" alt="screenshot_20250923_002913@2x" src="https://github.com/user-attachments/assets/bb0a9dbf-242e-43b8-96e8-cb7c397e9101" />
+
+
 ## Why Use Container Traffic Control?
 
 - **Stay Organized**: Automatically open work sites in your Work container, social sites in Social container, etc.
