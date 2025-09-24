@@ -460,7 +460,7 @@ class ContainerTrafficControlOptions {
                 ctcConsole.table(rules.map((rule, index) => ({
                     '#': index + 1,
                     Container: rule.containerName,
-                    Action: rule.action === 'allow' ? 'Allow' : 'Allow Only',
+                    Type: rule.action === 'open' ? '🌐 Open' : '🔒 Restricted',
                     'URL Pattern': rule.urlPattern,
                     'High Priority': rule.highPriority ? 'Yes' : 'No'
                 })));
