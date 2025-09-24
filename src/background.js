@@ -33,6 +33,7 @@ CtcRepo.initialize();
 // Constants
 const EXPIRY_REDIRECT_MS = 2000; // 2 seconds
 const EXPIRY_TAB_REQUEST_MS = 1000; // 1 second
+const EXPIRY_CONTAINER_SWITCH_MS = 1500; // 1.5 seconds - prevent duplicate switches to same container
 const CLEANUP_SIZE_THRESHOLD = 100; // Clean up when Maps exceed this size
 
 // Track recent redirections to prevent loops
@@ -40,6 +41,9 @@ const recentRedirections = new Map();
 
 // Prevents duplicate processing of the same navigation request
 const recentTabRequests = new Map();
+
+// Track recent container switches to prevent duplicates in redirect chains (GENERIC SOLUTION)
+const recentContainerSwitches = new Map();
 
 // Main request handler
 async function handleRequest(details) {
@@ -68,7 +72,8 @@ async function handleRequest(details) {
 
         // MAINTENANCE: Clean up when Maps get large to prevent memory bloat
         if (recentTabRequests.size > CLEANUP_SIZE_THRESHOLD ||
-            recentRedirections.size > CLEANUP_SIZE_THRESHOLD) {
+            recentRedirections.size > CLEANUP_SIZE_THRESHOLD ||
+            recentContainerSwitches.size > CLEANUP_SIZE_THRESHOLD) {
             pruneTrackingMaps();
         }
 
@@ -101,11 +106,22 @@ async function handleRequest(details) {
 
         // DECISION POINT: Container switch required?
         if (currentCookieStoreId !== targetCookieStoreId) {
+            // GENERIC REDIRECT CHAIN DETECTION: Check if we recently switched to this target container
+            // This catches any redirect chain (Firefox, Google, Microsoft, etc.) that tries to
+            // switch to the same container multiple times in quick succession
+            const containerSwitchKey = `${currentContainerName}->${targetContainerName}`;
+            const lastContainerSwitch = recentContainerSwitches.get(containerSwitchKey);
+            if (lastContainerSwitch && Date.now() - lastContainerSwitch < EXPIRY_CONTAINER_SWITCH_MS) {
+                ctcConsole.log(`Skipping duplicate container switch: ${containerSwitchKey} (within ${EXPIRY_CONTAINER_SWITCH_MS}ms)`);
+                return {}; // Let this URL load in existing tab from previous switch
+            }
+
             ctcConsole.info(`Container switch: ${currentContainerName} → ${targetContainerName} for ${details.url}`);
 
-            // CRITICAL: Record redirect BEFORE creating tab to prevent loops
+            // CRITICAL: Record redirect AND container switch BEFORE creating tab to prevent loops
             // Must happen before tab creation to catch race conditions
             recentRedirections.set(redirectKey, Date.now());
+            recentContainerSwitches.set(containerSwitchKey, Date.now());
 
             // ATOMIC OPERATION: Create new tab in correct container
             // FAILURE MODE: If this fails, user loses navigation entirely
@@ -153,6 +169,14 @@ function pruneTrackingMaps() {
     for (const [key, timestamp] of recentTabRequests.entries()) {
         if (now - timestamp > EXPIRY_TAB_REQUEST_MS) {
             recentTabRequests.delete(key);
+        }
+    }
+
+    // Clean expired container switch tracking
+    // PURPOSE: Remove old container switches that are no longer at risk of duplicates
+    for (const [key, timestamp] of recentContainerSwitches.entries()) {
+        if (now - timestamp > EXPIRY_CONTAINER_SWITCH_MS) {
+            recentContainerSwitches.delete(key);
         }
     }
 }
