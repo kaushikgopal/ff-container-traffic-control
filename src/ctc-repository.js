@@ -3,63 +3,131 @@
 
 /**
  * Centralized container and rule management
+ * CRITICAL: Thread-safe data repository for background script
  */
 const CtcRepo = {
-    // Global state
+    // SHARED STATE: Accessed by multiple async operations
     containerMap: new Map(),
     cookieStoreToNameMap: new Map(),
     rules: [],
 
+    // CONCURRENCY CONTROL: Prevent race conditions during async loads
+    _loadingContainersPromise: null,
+    _loadingRulesPromise: null,
+
     /**
-     * Load containers and update global state
+     * THREAD-SAFE: Load containers with race condition protection
+     * PROBLEM: Multiple events (onCreated, onRemoved) can fire simultaneously
+     * FAILURE MODE: Concurrent loads corrupt Maps, lose container data
      * @param {Function} onSuccess - Optional success callback
      * @param {Function} onError - Optional error callback
      */
     async loadContainers(onSuccess, onError) {
-        try {
-            const contextualIdentities = await browser.contextualIdentities.query({});
-            this.containerMap.clear();
-            this.cookieStoreToNameMap.clear();
+        // CONCURRENCY: If already loading, return the same promise
+        // BENEFIT: Multiple callers get same result, no duplicate API calls
+        if (this._loadingContainersPromise) {
+            return this._loadingContainersPromise;
+        }
 
-            // Add default container
-            this.containerMap.set('No Container', 'firefox-default');
-            this.cookieStoreToNameMap.set('firefox-default', 'No Container');
-
-            contextualIdentities.forEach(identity => {
-                this.containerMap.set(identity.name, identity.cookieStoreId);
-                this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
+        // ATOMIC OPERATION: Create promise for this load cycle
+        this._loadingContainersPromise = this._doLoadContainers()
+            .finally(() => {
+                // CLEANUP: Always clear promise when done (success or failure)
+                // CRITICAL: Allows future loads after errors
+                this._loadingContainersPromise = null;
             });
 
-            ctcConsole.log(`Loaded ${this.containerMap.size} containers`);
-
-            if (onSuccess) onSuccess(this.getContainerData());
-            return this.getContainerData();
+        try {
+            const result = await this._loadingContainersPromise;
+            if (onSuccess) onSuccess(result);
+            return result;
         } catch (error) {
-            ctcConsole.error('Failed to load containers:', error);
             if (onError) onError(error);
             else throw error;
         }
     },
 
     /**
-     * Load rules and update global state
+     * INTERNAL: Actual container loading implementation
+     * SEPARATION: Keep loading logic separate from concurrency control
+     */
+    async _doLoadContainers() {
+        try {
+            // BROWSER API: Query all Firefox containers
+            const contextualIdentities = await browser.contextualIdentities.query({});
+
+            // ATOMIC UPDATE: Clear and rebuild Maps in one operation
+            // CRITICAL: Don't partially update - other code might see inconsistent state
+            this.containerMap.clear();
+            this.cookieStoreToNameMap.clear();
+
+            // DEFAULT: Add built-in "No Container" option
+            this.containerMap.set('No Container', 'firefox-default');
+            this.cookieStoreToNameMap.set('firefox-default', 'No Container');
+
+            // POPULATE: Add all user containers
+            contextualIdentities.forEach(identity => {
+                this.containerMap.set(identity.name, identity.cookieStoreId);
+                this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
+            });
+
+            ctcConsole.log(`Loaded ${this.containerMap.size} containers`);
+            return this.getContainerData();
+        } catch (error) {
+            // PROPAGATE: Let caller handle the error
+            ctcConsole.error('Failed to load containers:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * THREAD-SAFE: Load rules with race condition protection
+     * PROBLEM: Storage change events can fire rapidly during rule saves
+     * FAILURE MODE: Concurrent loads can corrupt rules array
      * @param {Function} onSuccess - Optional success callback
      * @param {Function} onError - Optional error callback
      */
     async loadRules(onSuccess, onError) {
+        // CONCURRENCY: Prevent multiple simultaneous rule loads
+        if (this._loadingRulesPromise) {
+            return this._loadingRulesPromise;
+        }
+
+        // ATOMIC OPERATION: Single promise for this load cycle
+        this._loadingRulesPromise = this._doLoadRules()
+            .finally(() => {
+                // CLEANUP: Always clear promise state
+                this._loadingRulesPromise = null;
+            });
+
         try {
+            const result = await this._loadingRulesPromise;
+            if (onSuccess) onSuccess(result);
+            return result;
+        } catch (error) {
+            if (onError) onError(error);
+            else throw error;
+        }
+    },
+
+    /**
+     * INTERNAL: Actual rules loading implementation
+     */
+    async _doLoadRules() {
+        try {
+            // STORAGE API: Get rules from Firefox sync storage
             const storage = await browser.storage.sync.get('ctcRules');
             const rules = storage.ctcRules || [];
 
+            // ATOMIC UPDATE: Replace entire rules array
+            // CRITICAL: Don't mutate existing array - other code might be iterating
             this.rules = rules;
-            ctcConsole.log(`Loaded ${this.rules.length} rules`);
 
-            if (onSuccess) onSuccess(this.rules);
+            ctcConsole.log(`Loaded ${this.rules.length} rules`);
             return this.rules;
         } catch (error) {
             ctcConsole.error('Failed to load rules:', error);
-            if (onError) onError(error);
-            else throw error;
+            throw error;
         }
     },
 
