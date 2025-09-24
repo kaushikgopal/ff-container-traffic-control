@@ -10,47 +10,8 @@ browser.webRequest.onBeforeRequest.addListener(
     ["blocking"]
 );
 
-// EDGE CASE: Handle HTTP redirects (301/302) that bypass onBeforeRequest
-// Example: http://github.com -> https://github.com auto-redirect
-// Without this, users get stuck in wrong containers after redirects
-browser.webRequest.onBeforeRedirect.addListener(
-    async (details) => {
-        ctcConsole.log(`HTTP redirect: ${details.url} -> ${details.redirectUrl}`);
-
-        // Re-evaluate container rules for the redirect destination
-        try {
-            const currentCookieStoreId = await getCurrentContainer(details.tabId);
-            const { cookieStoreToNameMap } = CtcRepo.getContainerData();
-            const currentContainerName = cookieStoreToNameMap.get(currentCookieStoreId) || 'No Container';
-
-            // Evaluate target container for redirect destination
-            const targetCookieStoreId = evaluateContainer(details.redirectUrl, currentCookieStoreId);
-            const targetContainerName = cookieStoreToNameMap.get(targetCookieStoreId) || 'No Container';
-
-            ctcConsole.log(`Re-evaluating redirect ${details.redirectUrl} [${currentContainerName} -> ${targetContainerName}]`);
-
-            // Switch containers if needed
-            if (currentCookieStoreId !== targetCookieStoreId) {
-                ctcConsole.info(`Container switch on redirect: ${currentContainerName} → ${targetContainerName} for ${details.redirectUrl}`);
-
-                // Create new tab in target container
-                const newTab = await browser.tabs.create({
-                    url: details.redirectUrl,
-                    cookieStoreId: targetCookieStoreId,
-                    index: details.tabId >= 0 ? undefined : 0
-                });
-
-                // Close original tab if it exists
-                if (details.tabId >= 0) {
-                    browser.tabs.remove(details.tabId);
-                }
-            }
-        } catch (error) {
-            ctcConsole.error('Error re-evaluating redirect:', error);
-        }
-    },
-    { urls: ["<all_urls>"], types: ["main_frame"] }
-);
+// HTTP redirects are now handled entirely by onBeforeRequest
+// when the redirected URL loads - no separate handler needed
 
 browser.storage.onChanged.addListener((changes, areaName) => {
     if (changes.ctcRules && areaName === 'sync') {
