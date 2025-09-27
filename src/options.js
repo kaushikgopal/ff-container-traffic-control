@@ -377,7 +377,7 @@ class ContainerTrafficControlOptions {
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'url-pattern-input';
-        input.placeholder = 'github.com or /regex/';
+        input.placeholder = 'regulardomain.com or /regex pattern/';
         input.value = existingPattern;
         input.required = true;
 

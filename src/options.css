@@ -11,18 +11,10 @@ body {
     color: #333;
     background-color: white;
     margin: 0;
-    padding: 20px;
-}
-
-.container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0;
 }
 
 h1 {
     color: #2c3e50;
-    margin-bottom: 10px;
     font-size: 28px;
     font-weight: 600;
 }

@@ -8,10 +8,12 @@
 <body>
     <div class="container">
         <h1>Container Traffic Control</h1>
-        <p>Define rules to control which container websites open in.</p>
+        <p>
+            Define rules for each container to control which websites are allowed to open in it.
+            See help section below for more information.
+        </p>
 
         <div class="rules-section">
-            <h2>Rules</h2>
             <div class="validation-messages" id="validationMessages"></div>
 
             <div class="button-group">
@@ -19,15 +21,6 @@
             </div>
 
             <table id="rulesTable" class="rules-table">
-                <thead>
-                    <tr>
-                        <th class="type-column">Type</th>
-                        <th>Container</th>
-                        <th>URL Pattern</th>
-                        <th>High Priority</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
                 <tbody id="rulesTableBody">
                 </tbody>
             </table>
