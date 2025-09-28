@@ -66,8 +66,11 @@ class ContainerTrafficControlOptions {
 
     // NEW: Render a single container group with its URL patterns
     renderContainerGroup(containerName, existingRules = []) {
-        const containerGroup = document.createElement('div');
-        containerGroup.className = 'container-group';
+        // Clone the container group template
+        const template = document.getElementById('container-group-template');
+        const groupWrapper = template.content.cloneNode(true);
+
+        const containerGroup = groupWrapper.querySelector('.container-group');
         containerGroup.dataset.containerName = containerName;
 
         // Determine container type from existing rules
@@ -76,9 +79,22 @@ class ContainerTrafficControlOptions {
             containerType = existingRules[0].action; // All rules in container have same type
         }
 
-        // Create container header row
-        const headerRow = this.createContainerHeaderRow(containerName, containerType);
-        containerGroup.appendChild(headerRow);
+        // Set container name and type
+        const containerNameSpan = containerGroup.querySelector('.container-name');
+        containerNameSpan.textContent = containerName;
+
+        const typeSelect = containerGroup.querySelector('.container-type-select');
+        typeSelect.value = containerType;
+        typeSelect.dataset.containerName = containerName;
+
+        // Add event listeners for header controls
+        const addUrlBtn = containerGroup.querySelector('.add-url-btn');
+        addUrlBtn.onclick = () => this.addUrlPatternToContainer(containerName);
+
+        const clearBtn = containerGroup.querySelector('.clear-btn');
+        clearBtn.onclick = () => this.clearContainer(containerName);
+
+        typeSelect.addEventListener('change', (e) => this.handleContainerTypeChange(e.target));
 
         // Create URL pattern rows
         if (existingRules.length > 0) {
@@ -92,75 +108,26 @@ class ContainerTrafficControlOptions {
             containerGroup.appendChild(urlRow);
         }
 
-        // Add the entire group to the table
-        const groupWrapper = document.createElement('tr');
-        groupWrapper.className = 'container-group-wrapper';
-        const cell = document.createElement('td');
-        cell.colSpan = 5;
-        cell.appendChild(containerGroup);
-        groupWrapper.appendChild(cell);
-
         this.rulesTableBody.appendChild(groupWrapper);
     }
 
-    // NEW: Create the header row for a container
-    createContainerHeaderRow(containerName, containerType) {
-        const row = document.createElement('div');
-        row.className = 'container-header-row';
-
-        // Type dropdown
-        const typeSelect = this.createContainerTypeSelect(containerType, containerName);
-
-        // Container name
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'container-name';
-        nameSpan.textContent = containerName;
-
-        // Add URL button
-        const addUrlBtn = document.createElement('button');
-        addUrlBtn.type = 'button';
-        addUrlBtn.className = 'btn btn-secondary btn-small add-url-btn';
-        addUrlBtn.textContent = '+';
-        addUrlBtn.title = 'Add URL pattern';
-        addUrlBtn.onclick = () => this.addUrlPatternToContainer(containerName);
-
-        // Clear container button
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'btn btn-danger btn-small';
-        clearBtn.textContent = 'Clear';
-        clearBtn.title = 'Remove all URL patterns from this container';
-        clearBtn.onclick = () => this.clearContainer(containerName);
-
-        row.appendChild(typeSelect);
-        row.appendChild(nameSpan);
-        row.appendChild(addUrlBtn);
-        row.appendChild(clearBtn);
-
-        return row;
-    }
 
     // NEW: Create a URL pattern row within a container
     createUrlPatternRow(urlPattern = '', highPriority = false, containerName) {
-        const row = document.createElement('div');
-        row.className = 'url-pattern-row';
+        // Clone the URL pattern row template
+        const template = document.getElementById('url-pattern-row-template');
+        const row = template.content.cloneNode(true).querySelector('.url-pattern-row');
 
-        // URL pattern input
-        const urlInput = this.createUrlPatternInput(urlPattern);
+        // Set values
+        const urlInput = row.querySelector('.url-pattern-input');
+        urlInput.value = urlPattern;
 
-        // High priority checkbox
-        const priorityCheckbox = this.createPriorityCheckbox(highPriority);
+        const priorityCheckbox = row.querySelector('.priority-checkbox');
+        priorityCheckbox.checked = highPriority;
 
-        // Delete button
-        const deleteBtn = document.createElement('button');
-        deleteBtn.type = 'button';
-        deleteBtn.className = 'btn btn-danger btn-small';
-        deleteBtn.textContent = 'Delete';
+        // Set up delete button
+        const deleteBtn = row.querySelector('.delete-btn');
         deleteBtn.onclick = () => this.deleteUrlPattern(row, containerName);
-
-        row.appendChild(urlInput);
-        row.appendChild(priorityCheckbox);
-        row.appendChild(deleteBtn);
 
         // Add validation listeners
         urlInput.addEventListener('input', (e) => this.validateUrlPattern(e.target));
@@ -169,35 +136,6 @@ class ContainerTrafficControlOptions {
     }
 
     // NEW: Create type selector for container
-    createContainerTypeSelect(selectedType = 'no-rule', containerName) {
-        const select = document.createElement('select');
-        select.className = 'container-type-select';
-        select.dataset.containerName = containerName;
-
-        // Add options
-        const noRuleOption = document.createElement('option');
-        noRuleOption.value = 'no-rule';
-        noRuleOption.textContent = 'No Rule';
-        if (selectedType === 'no-rule') noRuleOption.selected = true;
-        select.appendChild(noRuleOption);
-
-        const openOption = document.createElement('option');
-        openOption.value = 'open';
-        openOption.textContent = '🌐 Open';
-        if (selectedType === 'open') openOption.selected = true;
-        select.appendChild(openOption);
-
-        const restrictedOption = document.createElement('option');
-        restrictedOption.value = 'restricted';
-        restrictedOption.textContent = '🔒 Restricted';
-        if (selectedType === 'restricted') restrictedOption.selected = true;
-        select.appendChild(restrictedOption);
-
-        // Handle type changes
-        select.addEventListener('change', (e) => this.handleContainerTypeChange(e.target));
-
-        return select;
-    }
 
     // NEW: Handle container type changes
     handleContainerTypeChange(typeSelect) {

@@ -173,7 +173,7 @@ p {
 }
 
 .rules-table tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: #a7a7a7;
 }
 
 .rules-table tbody tr.invalid {
@@ -377,16 +377,9 @@ input[type="checkbox"] {
 }
 
 /* Container Group Styles */
-.container-group-wrapper {
-    border-bottom: 1px solid #dee2e6;
-}
 
 .container-group-wrapper:nth-child(even) {
     background-color: #f8f9fa;
-}
-
-.container-group {
-    padding: 8px 0;
 }
 
 .container-header-row {
@@ -396,7 +389,6 @@ input[type="checkbox"] {
     align-items: center;
     padding: 8px 16px;
     font-weight: 500;
-    border-bottom: 1px solid #e9ecef;
     margin-bottom: 4px;
 }
 
@@ -407,8 +399,7 @@ input[type="checkbox"] {
 
 .container-type-select {
     width: 100%;
-    padding: 4px 8px;
-    border: 1px solid #bdc3c7;
+    padding: 4px;
     border-radius: 4px;
     font-size: 13px;
     background-color: white;
