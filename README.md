@@ -1,102 +1,33 @@
+<div align="center">
+<img width="200" alt="CTC icon" src="./icons/icon.png" />
+</div>
+
 # Container Traffic Control
 
 Container Traffic Control (CTC) is a Firefox extension that automatically manages which container websites open in, based on rules you define. It works with Firefox's [Multi-Account Containers](https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/) feature to provide enhanced privacy and organization.
 
-<img width="1450" height="2543" alt="screenshot_20250923_002913@2x" src="https://github.com/user-attachments/assets/bb0a9dbf-242e-43b8-96e8-cb7c397e9101" />
-
-
 ## Why Use Container Traffic Control?
 
-- **Stay Organized**: Automatically open work sites in your Work container, social sites in Social container, etc.
-- **Enhanced Privacy**: Keep different types of browsing completely separated
-- **Smart Defaults**: Stay in your current container when possible, switch only when needed
-- **Flexible Rules**: Create simple or complex patterns to match the sites you visit
+There are [various](https://github.com/kintesh/containerise) [add-ons](https://github.com/mcortt/Conductor/tree/main) that attempt to control which websites open up in a container but it always felt lacking. Those few times you don't have control, you land up fighting the container setup more than just using it effortlessly for your privacy.
 
-There are [other](https://github.com/kintesh/containerise) [similar](https://github.com/mcortt/Conductor/tree/main) extensions, but CTC offers a unique rule system designed for clarity and predictable behavior.
+I created this extension based on my own experience of using containers and various other add-ons. I came up with this mechanism of setting rules because it felt closest to how i wanted to leverage and use Containers.
 
 ## How Container Traffic Control Works
 
-CTC uses a simple preference system:
+- We list out all the existing containers
+- You start by marking the container as "open" or "restricted"
+- You provide a url pattern (either a simple url or complex regex - we accept both)
 
-1. **Stay Put**: If your current container accepts the URL, you stay there
-2. **Restricted Containers**: If you're in a container with "Allow Only" rules and click a non-matching link, you'll be moved out
-3. **Finding a Match**: When switching containers, high-priority rules win first
-4. **Default**: If no rules match, opens in "No Container" (regular browsing)
+... now just use Firefox normally and CTC will add as a traffic controller for your websites and containers.
 
-## Rule Types
+<img width="1452" height="1146" alt="screenshot_20250928_002931@2x" src="https://github.com/user-attachments/assets/1e68dcaf-29f5-49eb-9017-9ffa0521d2a5" />
+<img width="1628" height="2841" alt="screenshot_20250928_002932@2x" src="https://github.com/user-attachments/assets/696217c6-56f2-4aaf-a441-660c74f460c8" />
 
-### Allow Rules (Open Containers)
-- Container accepts specified URLs **plus any others**
-- Example: Social container allows `facebook.com` but you can still browse other sites in it
-
-### Allow Only Rules (Restricted Containers)
-- Container **ONLY** accepts specified URLs
-- Example: Work container only allows `company.com` - clicking other links moves you out
-- **Important**: A container cannot mix "Allow" and "Allow Only" rules
-
-## Example Scenarios
-
-**Scenario 1: Stay in Current Container**
-- You're in Personal container browsing GitHub
-- Personal container has: Allow `github.com`
-- Result: Stay in Personal (current container preference)
-
-**Scenario 2: High Priority Selection**
-- You're in No Container and click a GitHub link
-- Rules: Work (Allow `github.com`, HIGH priority), Personal (Allow `github.com`, NORMAL)
-- Result: Open in Work container (high priority wins)
-
-**Scenario 3: Restricted Container Boot-Out**
-- You're in Work container (Allow Only `work.com`)
-- You click a Facebook link
-- Result: Move to container that allows Facebook, or No Container if none match
 
 ## Installation
 
-Install from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/container-traffic-control/) (coming soon)
+Install from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/ctc/) directly
 
-## Setting Up Rules
-
-1. Right-click the CTC icon → "Manage Extension" → "Options"
-2. Configure containers:
-   - **Type**: Choose "No Rule" (disabled), "🌐 Open", or "🔒 Restricted" for each container
-   - **URL Patterns**: Add multiple URL patterns per container using the "+" button
-   - **High Priority**: Set priority per URL pattern to override conflicts
-   - **Clear**: Remove all URL patterns from a container
-3. Click "Save Rules" (available at top and bottom of the page)
-
-### Container Management
-- **All containers** are shown by default, even unused ones
-- **No Rule**: Container is inactive (no URL patterns will match)
-- **🌐 Open**: Container accepts specified URLs plus any others
-- **🔒 Restricted**: Container ONLY accepts specified URLs
-
-## URL Patterns
-
-CTC supports two pattern modes for maximum flexibility:
-
-### Simple Patterns (Recommended)
-Just type the domain or URL part you want to match:
-
-- `github.com` - Matches any URL containing "github.com"
-- `mail.google.com` - Matches Gmail URLs
-- `facebook.com` - Matches Facebook URLs
-- `company.com` - Matches your company's sites
-
-### Advanced Patterns (Regex)
-For complex matching, wrap patterns in forward slashes:
-
-- `/.*\.google\.com/` - All Google subdomains (drive, mail, etc.)
-- `/.*\.(facebook|twitter|instagram)\.com/` - Multiple social media sites
-- `/^https:\/\/github\.com\/myusername/` - Only your GitHub repositories
-- `/mail\..*/` - Any site starting with "mail."
-
-### Which Should You Use?
-
-- **Simple patterns** for most use cases - easier and more reliable
-- **Advanced patterns** when you need precise control or complex matching
-
-**Privacy Tip**: Use specific patterns when possible to maintain container isolation.
 
 # Development
 
