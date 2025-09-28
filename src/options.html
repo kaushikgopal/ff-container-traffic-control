@@ -40,32 +40,30 @@
                 <p><strong>🔒 Restricted</strong>Use for strict isolation. Container will *only* accept the specified URLs. Navigating to non-matching URLs will boot you out of this container. It will try to find a matching container to open in otherwise open in "no container".</p>
             </div>
 
-            <h4>Container</h4>
-            <div class="rule-legend">
-                <p>firefox container the rule applies to. "no container" means default browsing without container isolation.</p>
-                <p>See <a href="https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/" target="_blank">Multi-Account Containers</a> for creating and managing containers.</p>
-            </div>
-
             <h4>URL Pattern</h4>
             <div class="rule-legend">
-                <p><strong>Simple patterns:</strong> Type the domain or URL part directly</p>
+                <p><strong>Simple patterns:</strong> Just enter the domain or URL as you see it.</p>
                 <ul>
-                    <li><code>github.com</code> → matches any URL containing "github.com"</li>
-                    <li><code>mail.google.com</code> → matches Gmail URLs</li>
-                    <li><code>work.example.com</code> → matches work site URLs</li>
+                    <li>More often than not, this is the best option. </li>
+                    <li><span style="color: blue;"><code>github.com</code></span></span> matches any URL containing "github.com"</li>
+                    <li><span style="color: blue;"><code>mail.google.com</code></span></span> matches Gmail URLs</li>
+                    <li><span style="color: blue;"><code>work.example.com</code></span></span> matches work site URLs</li>
                 </ul>
-                <p><strong>Regex patterns:</strong> Wrap in slashes for advanced matching</p>
+                <p><strong>Regex patterns:</strong> Wrap in slashes for advanced regex matching</p>
                 <ul>
-                    <li><code>/.*\.google\.com/</code> → matches any Google subdomain</li>
-                    <li><code>/^https://github\.com/user/</code> → matches specific user's repos</li>
-                    <li><code>/\.(work|company)\.com$/</code> → matches multiple work domains</li>
+                    <li><strong>/</strong><span style="color: blue;"><code>github\.com</code></span><strong>/</strong> finds github.com anywhere in the URL</li>
+                    <li><strong>/</strong><span style="color: blue;"><code>.*github\.com</code></span><strong>/</strong> similar to above finds github.com anywhere in the URL</li>
+                    <li><strong>/</strong><span style="color: blue;"><code>^github\.com/</code></span><strong>/</strong> won't match since URLs start with "https://" github.com/user/repo</li>
+                    <li><strong>/</strong><span style="color: blue;"><code>.*\.github\.com</code></span><strong>/</strong> matches api.github.com but won't match https://github.com/user/repo</li>
+                    <li><strong>/</strong><span style="color: blue;"><code>.*\.?github\.com</code></span><strong>/</strong> matches api.github.com & github.com/user (but just use `/github\.com/` for simpler matching)</li>
                 </ul>
             </div>
 
-            <h4>High Priority</h4>
+            <h4>High Priority Checkbox</h4>
             <div class="rule-legend">
-                <p>When multiple containers match a URL (and you're about to move to a new container), high-priority rules are chosen first. Use to override default container assignments.</p>
-                <p><strong>Example:</strong> Both "Personal" and "Work" containers match <code>github.com</code>, but "Work" has high priority → opens in Work container.</p>
+                <p>When multiple containers match a URL (and you're about to move to a new container), high-priority rules are chosen first.</p>
+                <p><strong>Example:</strong> Both "Personal" and "Work" containers match <code>github.com</code> but "Work" has high priority checkbox checked, CTC will pick it to open the URL.</p>
+                <p>This is particularly useful for cases like docs.google.com where you might want to open google docs in both a personal and work container, so you have it in both. But when starting from a new tab, you might prefer to open it in the personal container.</p>
             </div>
 
             <h3>How Container Traffic Control Works</h3>
