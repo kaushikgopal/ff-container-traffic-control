@@ -210,6 +210,92 @@ test('HTTP Redirect - Open rule should not boot from container', () => {
     assertEqual(result, 'Personal', 'Should stay in Personal container with open rules');
 });
 
+// Test 8: Google search container isolation
+test('Google Search Isolation - Keep searches in one container, results in default', () => {
+    const rules = [
+        createRule('Search', 'restricted', 'google.com/search'),  // Only Google search pages
+        createRule('Search', 'restricted', '/.*\\.google\\.com/search/')  // Any Google domain search
+    ];
+    const containerMap = new Map([
+        ['Search', 'search-id'],
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
+
+    // Should stay in Search container for search pages
+    const searchResult = evaluateContainerForUrl('https://google.com/search?q=javascript', 'Search', rules, containerMap);
+    assertEqual(searchResult, 'Search', 'Should stay in Search container for Google search');
+
+    // Should be booted from Search container for result links (restricted rule)
+    const resultResult = evaluateContainerForUrl('https://developer.mozilla.org/docs', 'Search', rules, containerMap);
+    assertEqual(resultResult, 'No Container', 'Should be booted from Search container for result links');
+
+    // Direct navigation to search from No Container should work
+    const directSearch = evaluateContainerForUrl('https://google.com/search?q=firefox', 'No Container', rules, containerMap);
+    assertEqual(directSearch, 'Search', 'Should switch to Search container for direct search navigation');
+});
+
+// Test 9: Conditional GitHub routing based on organization
+test('Conditional GitHub Routing - Work vs Personal by organization', () => {
+    const rules = [
+        createRule('Work', 'open', '/github\\.com\\/instacart/', true),      // High priority for work org
+        createRule('Personal', 'open', '/github\\.com\\/kaushikgopal/', true), // High priority for personal
+        createRule('Work', 'open', 'github.com')  // Default GitHub to Work (lower priority)
+    ];
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
+
+    // From Gmail, instacart links should go to Work
+    const instacartResult = evaluateContainerForUrl('https://github.com/instacart/some-repo', 'Personal', rules, containerMap);
+    assertEqual(instacartResult, 'Work', 'Should switch to Work for instacart GitHub links');
+
+    // From Gmail, personal links should stay in Personal
+    const personalResult = evaluateContainerForUrl('https://github.com/kaushikgopal/my-repo', 'Personal', rules, containerMap);
+    assertEqual(personalResult, 'Personal', 'Should stay in Personal for kaushikgopal GitHub links');
+
+    // Other GitHub links should go to Work (default)
+    const otherResult = evaluateContainerForUrl('https://github.com/microsoft/vscode', 'Personal', rules, containerMap);
+    assertEqual(otherResult, 'Work', 'Should switch to Work for other GitHub links');
+
+    // From No Container, personal links should go to Personal
+    const freshPersonalResult = evaluateContainerForUrl('https://github.com/kaushikgopal/dotfiles', 'No Container', rules, containerMap);
+    assertEqual(freshPersonalResult, 'Personal', 'Should switch to Personal for kaushikgopal links from No Container');
+});
+
+// Test 10: Google Workspace container coherence (stay put principle)
+test('Google Workspace Coherence - Stay in current container for cross-product links', () => {
+    const rules = [
+        createRule('Work', 'open', 'docs.google.com'),
+        createRule('Work', 'open', 'sheets.google.com'),  // Default Sheets to Work
+        createRule('Work', 'open', 'drive.google.com'),
+        createRule('Personal', 'open', 'docs.google.com'),
+        createRule('Personal', 'open', 'sheets.google.com'),  // Also allow Personal Sheets
+        createRule('Personal', 'open', 'drive.google.com')
+    ];
+    const containerMap = new Map([
+        ['Personal', 'personal-id'],
+        ['Work', 'work-id'],
+    ]);
+
+    // From Personal Docs, clicking Sheets should stay in Personal (stay put wins)
+    const docsToSheetsResult = evaluateContainerForUrl('https://sheets.google.com/spreadsheets/d/abc123', 'Personal', rules, containerMap);
+    assertEqual(docsToSheetsResult, 'Personal', 'Should stay in Personal when clicking Sheets from Personal Docs');
+
+    // From Personal Docs, clicking Drive should stay in Personal
+    const docsToDriveResult = evaluateContainerForUrl('https://drive.google.com/drive/folders/xyz789', 'Personal', rules, containerMap);
+    assertEqual(docsToDriveResult, 'Personal', 'Should stay in Personal when clicking Drive from Personal Docs');
+
+    // From Work Docs, clicking Drive should stay in Work
+    const workDocsToDriveResult = evaluateContainerForUrl('https://drive.google.com/drive/folders/work123', 'Work', rules, containerMap);
+    assertEqual(workDocsToDriveResult, 'Work', 'Should stay in Work when clicking Drive from Work Docs');
+
+    // Fresh navigation to Sheets should go to Work (first rule wins when no current container)
+    const freshSheetsResult = evaluateContainerForUrl('https://sheets.google.com/create', 'No Container', rules, containerMap);
+    assertEqual(freshSheetsResult, 'Work', 'Should switch to Work for fresh Sheets navigation');
+});
+
 // Summary
 console.log('\n' + '=' .repeat(60));
 console.log(`📊 Test Results: ${passCount}/${testCount} tests passed`);
