@@ -3,7 +3,7 @@
 
 // MISSION CONTROL: User interface for managing container routing rules
 // FAILURE MODE: If this crashes, users can't modify rules (extension becomes read-only)
-class ContainerTrafficControlOptions {
+class CtcOptions {
     constructor() {
         // STATE: Core data structures that mirror background script
         this.containers = [];  // Available Firefox containers
@@ -650,5 +650,5 @@ class ContainerTrafficControlOptions {
 
 // Initialize the options page when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new ContainerTrafficControlOptions();
+    new CtcOptions();
 });
