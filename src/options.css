@@ -437,3 +437,47 @@ input[type="checkbox"] {
 .container-group[data-type="no-rule"] .add-url-btn {
     display: none;
 }
+
+/* Import/Export Section */
+.import-export-section {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 2px solid #ecf0f1;
+}
+
+.import-export-section h2 {
+    margin-bottom: 20px;
+}
+
+.export-section,
+.import-section {
+    margin-bottom: 20px;
+}
+
+.export-section label,
+.import-section label {
+    display: inline-block;
+    font-weight: 500;
+    margin-right: 10px;
+    color: #2c3e50;
+}
+
+.export-output,
+.import-input {
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 2px solid #e0e6ed;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: monospace;
+}
+
+.export-output {
+    background-color: #f8f9fa;
+    cursor: text;
+}
+
+.import-input {
+    background-color: white;
+}

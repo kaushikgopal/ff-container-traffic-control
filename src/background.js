@@ -48,6 +48,8 @@ const recentContainerSwitches = new Map();
 // Main request handler
 async function handleRequest(details) {
     try {
+        ctcConsole.log(`Received request for ${details.url}`);
+
         // SAFETY: Never redirect browser internal URLs
         // FAILURE MODE: Redirecting about:config could break Firefox
         if (isPrivilegedURL(details.url)) {

@@ -20,6 +20,8 @@ class CtcOptions {
     initializeEventListeners() {
         document.getElementById('saveRulesTopBtn').addEventListener('click', () => this.saveRules());
         document.getElementById('saveRulesBottomBtn').addEventListener('click', () => this.saveRules());
+        document.getElementById('exportBtn').addEventListener('click', () => this.exportRules());
+        document.getElementById('importBtn').addEventListener('click', () => this.importRules());
     }
 
     // BOOTSTRAP: Load container and rule data from background script
@@ -644,6 +646,113 @@ class CtcOptions {
             // FAILURE MODE: User loses all their configuration work
             ctcConsole.error('Failed to save rules:', error);
             this.showValidationMessage('Failed to save rules. Please try again.', 'error');
+        }
+    }
+
+    // EXPORT: Export rules to JSON for backup/sharing
+    // REQUIREMENT: User must save rules before exporting (ensures consistency)
+    exportRules() {
+        this.clearValidationMessages();
+
+        try {
+            // HARVEST: Get current rules from UI
+            const currentRules = this.collectRulesFromTable();
+
+            // CONSISTENCY CHECK: Compare current UI state with saved rules
+            // PURPOSE: Prevent exporting unsaved/unvalidated rules
+            const currentRulesJson = JSON.stringify(currentRules);
+            const savedRulesJson = JSON.stringify(this.rules);
+
+            if (currentRulesJson !== savedRulesJson) {
+                this.showValidationMessage('Please save rules first before exporting.', 'error');
+                return;
+            }
+
+            // EXPORT: Convert to single-line JSON for easy copy-paste
+            const exportJson = JSON.stringify(this.rules);
+
+            // DISPLAY: Show JSON in readonly input field
+            const exportOutput = document.getElementById('exportOutput');
+            exportOutput.value = exportJson;
+            exportOutput.style.display = 'block';
+
+            this.showValidationMessage('Rules exported successfully. Copy the JSON below.', 'success');
+            ctcConsole.info('Exported', this.rules.length, 'rules');
+        } catch (error) {
+            ctcConsole.error('Failed to export rules:', error);
+            this.showValidationMessage('Failed to export rules. Please try again.', 'error');
+        }
+    }
+
+    // IMPORT: Import rules from JSON
+    // SAFETY: Full validation before replacing existing rules
+    async importRules() {
+        this.clearValidationMessages();
+
+        try {
+            // HARVEST: Get JSON from input field
+            const importInput = document.getElementById('importJsonInput');
+            const jsonString = importInput.value.trim();
+
+            if (!jsonString) {
+                this.showValidationMessage('Please paste JSON rules to import.', 'error');
+                return;
+            }
+
+            // PARSE: Validate JSON syntax
+            let importedRules;
+            try {
+                importedRules = JSON.parse(jsonString);
+            } catch (parseError) {
+                this.showValidationMessage('Invalid JSON format. Please check your input.', 'error');
+                ctcConsole.error('JSON parse error:', parseError);
+                return;
+            }
+
+            // TYPE CHECK: Ensure it's an array
+            if (!Array.isArray(importedRules)) {
+                this.showValidationMessage('Invalid format: Rules must be an array.', 'error');
+                return;
+            }
+
+            // SAFETY CHECK: Run comprehensive validation (reuse existing logic)
+            const { errors, warnings } = this.validateAllRules(importedRules);
+
+            // BLOCKING: Don't import broken rules
+            if (errors.length > 0) {
+                const errorMessage = 'Validation errors:\n' + errors.join('\n');
+                this.showValidationMessage(errorMessage, 'error');
+                ctcConsole.error('Validation errors:', errors);
+                return; // ABORT: User must fix errors first
+            }
+
+            // ADVISORY: Show warnings but allow import
+            if (warnings.length > 0) {
+                warnings.forEach(warning => {
+                    ctcConsole.warn(warning);
+                });
+            }
+
+            // COMMIT: Replace all rules in storage
+            await browser.storage.sync.set({ ctcRules: importedRules });
+            this.rules = importedRules; // Update local cache
+
+            // REFRESH: Re-render UI to show imported rules
+            this.renderAllContainerGroups();
+
+            // CLEANUP: Clear import input
+            importInput.value = '';
+
+            // SUCCESS FEEDBACK
+            const successMessage = warnings.length > 0
+                ? `${importedRules.length} rules imported with warnings. Check console for details.`
+                : `${importedRules.length} rules imported successfully.`;
+            this.showValidationMessage(successMessage, warnings.length > 0 ? 'warning' : 'success');
+            ctcConsole.info('Imported', importedRules.length, 'rules');
+
+        } catch (error) {
+            ctcConsole.error('Failed to import rules:', error);
+            this.showValidationMessage('Failed to import rules. Please try again.', 'error');
         }
     }
 }

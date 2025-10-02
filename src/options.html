@@ -74,6 +74,22 @@
                 <li><strong>Default:</strong> If no rules match, opens in "No Container" (regular browsing)</li>
             </ol>
         </div>
+
+        <div class="import-export-section">
+            <h2>Import / Export Rules</h2>
+
+            <div class="export-section">
+                <label for="exportOutput">Export:</label>
+                <button id="exportBtn" class="btn btn-primary">Export</button>
+                <input type="text" id="exportOutput" class="export-output" readonly style="display:none;">
+            </div>
+
+            <div class="import-section">
+                <label for="importJsonInput">Import JSON:</label>
+                <input type="text" id="importJsonInput" class="import-input" placeholder="Paste JSON rules here">
+                <button id="importBtn" class="btn btn-primary">Import</button>
+            </div>
+        </div>
     </div>
 
     <!-- Template definitions for dynamic content -->
