@@ -4,21 +4,51 @@
 
 # Container Traffic Control
 
-Container Traffic Control (CTC) is a Firefox extension that automatically manages which container websites open in, based on rules you define. It works with Firefox's [Multi-Account Containers](https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/) feature to provide enhanced privacy and organization.
+Container Traffic Control (CTC) is a Firefox extension that automatically manages which container websites open in, based on rules you define. Works with Firefox's [Multi-Account Containers](https://addons.mozilla.org/en-US/firefox/addon/multi-account-containers/).
 
 ## Why Use Container Traffic Control?
 
-There are [various](https://github.com/kintesh/containerise) [add-ons](https://github.com/mcortt/Conductor/tree/main) that attempt to control which websites open up in a container but it always felt lacking. Those few times you don't have control, you land up fighting the container setup more than just using it effortlessly for your privacy.
+Other [container](https://github.com/kintesh/containerise) [extensions](https://github.com/mcortt/Conductor/tree/main) exist, but they often lack control when you need it most. You end up fighting the setup rather than using containers effortlessly.
 
-I created this extension based on my own experience of using containers and various other add-ons. I came up with this mechanism of setting rules because it felt closest to how i wanted to leverage and use Containers.
+This extension uses a rule-based mechanism designed for how containers are actually used in practice.
 
-## How Container Traffic Control Works
+## Examples
 
-- We list out all the existing containers
-- You start by marking the container as "open" or "restricted"
-- You provide a url pattern (either a simple url or complex regex - we accept both)
+### General Concept
 
-... now just use Firefox normally and CTC will add as a traffic controller for your websites and containers.
+[Firefox Containers](https://support.mozilla.org/en-US/kb/how-use-firefox-containers) let you open two Gmail tabs in the same window with different profiles—one for work, one for personal.
+
+### Example 1: Multiple GitHub Profiles
+
+You have work and personal GitHub accounts. Your work account uses SSO (Okta), and you want `github.com/company-name/*` links to open in your Work container while `github.com/username/*` opens in Personal.
+
+When you click a GitHub link from email or Slack, your options without CTC are:
+- Right-click → open in specific container
+- Create new tab in that container → copy/paste the link
+
+This gets tedious fast.
+
+### Example 2: YouTube Premium
+
+You have multiple Google profiles with separate containers. You subscribe to YouTube Premium on your personal account, so you want all YouTube links to open there (no ads), regardless of where you click them—work email, personal email, Slack, etc.
+
+CTC automatically routes all YouTube links to your Personal container.
+
+### Example 3: Google Docs Account Routing
+
+You want `https://docs.google.com/document/u/0/*` to open in Personal and `https://docs.google.com/document/u/1/*` to open in Work.
+
+CTC supports both simple URL patterns and regex, giving you precise control over routing.
+
+These are the primary use cases. CTC also handles subtle scenarios like open/restricted containers and seamless redirects when switching containers.
+
+## How It Works
+
+1. CTC lists all your existing containers
+2. Mark each container as "open" (accepts these URLs + any others) or "restricted" (only these URLs)
+3. Add URL patterns—simple strings like `github.com` or regex like `/.*\.github\.com/`
+
+Now use Firefox normally. CTC acts as traffic control, routing links to the right containers automatically.
 
 <img width="1452" height="1146" alt="screenshot_20250928_002931@2x" src="https://github.com/user-attachments/assets/1e68dcaf-29f5-49eb-9017-9ffa0521d2a5" />
 <img width="1628" height="2841" alt="screenshot_20250928_002932@2x" src="https://github.com/user-attachments/assets/696217c6-56f2-4aaf-a441-660c74f460c8" />
@@ -51,33 +81,23 @@ make clean   # Remove build artifacts
 
 ## Testing
 
-The extension includes a comprehensive test suite for rule evaluation logic:
-
 ```bash
-# Run all tests
-make test
-
-# Tests cover:
-# - Pattern matching (simple and regex patterns)
-# - Rule evaluation scenarios
-# - Container switching logic
-# - Priority handling
-# - Edge cases and error conditions
+make test  # Run rule engine tests
 ```
 
-Tests are located in `test/rule-engine-test.js` and can be run independently with `node test/rule-engine-test.js`. The test framework is simple and doesn't require additional dependencies.
+Tests cover pattern matching, rule evaluation, container switching, priority handling, and edge cases. Located in `test/rule-engine-test.js` (runnable as `node test/rule-engine-test.js`). No external dependencies.
 
-## Alternative: Manual Loading
-1. Open Firefox → `about:debugging`
-2. Click "This Firefox" → "Load Temporary Add-on"
-3. Select `manifest.json` (in project root)
+## Manual Loading
+Firefox → `about:debugging` → "This Firefox" → "Load Temporary Add-on" → select `manifest.json`
 
 ## Debugging
-- Go to `about:debugging` → Find "Container Traffic Control" → Click "Inspect"
-- Console logs appear in DevTools Console tab
-- View extension storage in DevTools → Storage tab
+`about:debugging` → "Container Traffic Control" → "Inspect" (console logs in DevTools Console; storage in Storage tab)
 
-For detailed development guidance, see [AGENTS.md](AGENTS.md)
+For detailed development guidance, see [AGENTS.md](AGENTS.md).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
