@@ -59,21 +59,21 @@ Now use Firefox normally. CTC acts as traffic control, routing links to the righ
 <img width="1628" height="2841" alt="screenshot_20250928_002932@2x" src="https://github.com/user-attachments/assets/696217c6-56f2-4aaf-a441-660c74f460c8" />
 
 
-## Installation
+# Installation & Development
 
 Install from [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/ctc/) directly
 
+## Manual Loading
 
-# Development
+Firefox → `about:debugging` → "This Firefox" → "Load Temporary Add-on" → select `manifest.json`
 
-## Quick Start
+## Debugging
 
-1. Clone this repository
-2. Install web-ext: `brew install web-ext`
-3. Build and test: `make build && make test`
-4. Run the extension: `make run`
+`about:debugging` → "Container Traffic Control" → "Inspect" (console logs in DevTools Console; storage in Storage tab)
 
-## Available Commands
+For detailed development guidance, see [AGENTS.md](AGENTS.md).
+
+### Available Commands
 
 ```bash
 make help    # Show all available commands
@@ -84,21 +84,20 @@ make run     # Run extension in Firefox for development
 make clean   # Remove build artifacts
 ```
 
-## Testing
+### Quick Start
+
+1. Clone this repository
+2. Install web-ext: `brew install web-ext`
+3. Build and test: `make build && make test`
+4. Run the extension: `make run`
+
+## On testing
 
 ```bash
 make test  # Run rule engine tests
 ```
 
 Tests cover pattern matching, rule evaluation, container switching, priority handling, and edge cases. Located in `test/rule-engine-test.js` (runnable as `node test/rule-engine-test.js`). No external dependencies.
-
-## Manual Loading
-Firefox → `about:debugging` → "This Firefox" → "Load Temporary Add-on" → select `manifest.json`
-
-## Debugging
-`about:debugging` → "Container Traffic Control" → "Inspect" (console logs in DevTools Console; storage in Storage tab)
-
-For detailed development guidance, see [AGENTS.md](AGENTS.md).
 
 ## Changelog
 
