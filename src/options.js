@@ -620,7 +620,8 @@ class CtcOptions {
 
             // PERSIST: Write rules to Firefox sync storage
             // CRITICAL: This triggers background script to reload rules
-            await browser.storage.sync.set({ ctcRules: rules });
+            const encodedRules = await encodeRulesForStorage(rules);
+            await browser.storage.sync.set({ ctcRules: encodedRules });
             this.rules = rules; // Update local cache
 
             // SUCCESS FEEDBACK: Confirm save to user
@@ -734,7 +735,8 @@ class CtcOptions {
             }
 
             // COMMIT: Replace all rules in storage
-            await browser.storage.sync.set({ ctcRules: importedRules });
+            const encodedRules = await encodeRulesForStorage(importedRules);
+            await browser.storage.sync.set({ ctcRules: encodedRules });
             this.rules = importedRules; // Update local cache
 
             // REFRESH: Re-render UI to show imported rules

@@ -3,25 +3,21 @@
 
 // Import the rule engine and utilities
 const { evaluateContainerForUrl } = require('../src/rule-engine.js');
-const { matchesPattern } = require('../src/utils.js');
+const {
+    matchesPattern,
+    encodeRulesForStorage,
+    decodeRulesFromStorage,
+    hasCompressionStreams
+} = require('../src/utils.js');
+const containerizeRules = require('./fixtures/containerize-personal-rules.json');
 
 // Simple test framework
 let testCount = 0;
 let passCount = 0;
+const tests = [];
 
 function test(name, testFunction) {
-    testCount++;
-    console.log(`\n🧪 Test ${testCount}: ${name}`);
-    console.log('='.repeat(50));
-
-    try {
-        testFunction();
-        passCount++;
-        console.log('✅ PASS');
-    } catch (error) {
-        console.log('❌ FAIL:', error.message);
-        console.log('Stack:', error.stack);
-    }
+    tests.push({ name, testFunction });
 }
 
 function assertEqual(actual, expected, message = '') {
@@ -36,6 +32,22 @@ function createContainer(name, id = name.toLowerCase()) {
 
 function createRule(containerName, action, urlPattern, highPriority = false) {
     return { containerName, action, urlPattern, highPriority };
+}
+
+function createContainerMapFromRules(rules) {
+    const map = new Map();
+    map.set('No Container', 'firefox-default');
+
+    rules.forEach(rule => {
+        if (!map.has(rule.containerName)) {
+            const normalizedName = rule.containerName
+                .toLowerCase()
+                .replace(/\s+/g, '-');
+            map.set(rule.containerName, `${normalizedName}-id`);
+        }
+    });
+
+    return map;
 }
 
 // Test Suite
@@ -53,6 +65,39 @@ test('Pattern Matching - Regex patterns', () => {
     assertEqual(matchesPattern('https://github.com', '/.*\\.github\\.com/'), false, 'Should not match main domain with subdomain regex');
     assertEqual(matchesPattern('https://api.github.com', '/.*\\.github\\.com/'), true, 'Should match subdomain with regex');
     assertEqual(matchesPattern('https://github.com/user', '/^https://github\\.com/'), true, 'Should match with anchor regex');
+});
+
+test('Storage Codec - Round trip large fixture', async () => {
+    const encoded = await encodeRulesForStorage(containerizeRules);
+    assertEqual(typeof encoded, 'string', 'Encoded payload should be a string');
+
+    const decoded = await decodeRulesFromStorage(encoded);
+    assertEqual(JSON.stringify(decoded), JSON.stringify(containerizeRules), 'Decoded rules should match original payload');
+});
+
+test('Storage Codec - Legacy JSON compatibility', async () => {
+    const legacyJson = JSON.stringify(containerizeRules);
+    const decoded = await decodeRulesFromStorage(legacyJson);
+    assertEqual(JSON.stringify(decoded), JSON.stringify(containerizeRules), 'Legacy JSON string should decode to original rules');
+});
+
+test('Storage Codec - Fallback when CompressionStream is unavailable', async () => {
+    const originalCompression = global.CompressionStream;
+    const originalDecompression = global.DecompressionStream;
+
+    try {
+        global.CompressionStream = undefined;
+        global.DecompressionStream = undefined;
+
+        const encoded = await encodeRulesForStorage(containerizeRules);
+        assertEqual(encoded.startsWith('gz:'), false, 'Fallback encoding should not use gzip prefix');
+
+        const decoded = await decodeRulesFromStorage(encoded);
+        assertEqual(JSON.stringify(decoded), JSON.stringify(containerizeRules), 'Fallback decode should match original rules');
+    } finally {
+        global.CompressionStream = originalCompression;
+        global.DecompressionStream = originalDecompression;
+    }
 });
 
 // Test 2: No rules scenario (your current issue)
@@ -296,14 +341,51 @@ test('Google Workspace Coherence - Stay in current container for cross-product l
     assertEqual(freshSheetsResult, 'Work', 'Should switch to Work for fresh Sheets navigation');
 });
 
-// Summary
-console.log('\n' + '=' .repeat(60));
-console.log(`📊 Test Results: ${passCount}/${testCount} tests passed`);
+test('Containerize Import - Gmail vs Google stay-put behavior', () => {
+    const containerMap = createContainerMapFromRules(containerizeRules);
+    const gmailUrl = 'https://mail.google.com/mail/u/0/';
 
-if (passCount === testCount) {
-    console.log('🎉 All tests passed!');
-    process.exit(0);
-} else {
-    console.log('💥 Some tests failed!');
-    process.exit(1);
+    const freshContainer = evaluateContainerForUrl(gmailUrl, 'No Container', containerizeRules, containerMap);
+    assertEqual(freshContainer, 'Gmail', 'Converted rules route Gmail correctly from default context');
+
+    const googleContainer = evaluateContainerForUrl(gmailUrl, 'Google', containerizeRules, containerMap);
+    assertEqual(
+        googleContainer,
+        'Google',
+        'Stay-put logic keeps Gmail inside Google container when already there'
+    );
+});
+
+async function runTests() {
+    for (const { name, testFunction } of tests) {
+        console.log(`\n🧪 Test ${testCount + 1}: ${name}`);
+        console.log('='.repeat(50));
+
+        try {
+            const result = testFunction();
+            if (result && typeof result.then === 'function') {
+                await result;
+            }
+            passCount++;
+            console.log('✅ PASS');
+        } catch (error) {
+            console.log('❌ FAIL:', error.message);
+            console.log('Stack:', error.stack);
+        } finally {
+            testCount++;
+        }
+    }
+
+    console.log('\n' + '='.repeat(60));
+    console.log(`📊 Test Results: ${passCount}/${testCount} tests passed`);
+
+    if (passCount === testCount) {
+        console.log('🎉 All tests passed!');
+        process.exit(0);
+    } else {
+        console.log('💥 Some tests failed!');
+        process.exit(1);
+    }
 }
+
+runTests();

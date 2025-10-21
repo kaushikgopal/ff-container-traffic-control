@@ -117,11 +117,11 @@ const CtcRepo = {
         try {
             // STORAGE API: Get rules from Firefox sync storage
             const storage = await browser.storage.sync.get('ctcRules');
-            const rules = storage.ctcRules || [];
+            const decodedRules = await decodeRulesFromStorage(storage.ctcRules);
 
             // ATOMIC UPDATE: Replace entire rules array
             // CRITICAL: Don't mutate existing array - other code might be iterating
-            this.rules = rules;
+            this.rules = decodedRules;
 
             ctcConsole.log(`Loaded ${this.rules.length} rules`);
             return this.rules;
