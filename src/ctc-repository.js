@@ -5,15 +5,16 @@
  * Centralized container and rule management
  * CRITICAL: Thread-safe data repository for background script
  */
-const CtcRepo = {
+class CtcRepository {
     // SHARED STATE: Accessed by multiple async operations
-    containerMap: new Map(),
-    cookieStoreToNameMap: new Map(),
-    rules: [],
+    containerMap = new Map();
+    cookieStoreToNameMap = new Map();
+    rules = [];
 
-    // CONCURRENCY CONTROL: Prevent race conditions during async loads
-    _loadingContainersPromise: null,
-    _loadingRulesPromise: null,
+    // CONCURRENCY CONTROL: Prevent race conditions during async loads (private)
+    #loadingContainersPromise = null;
+    #loadingRulesPromise = null;
+    #initializationFailed = false;
 
     /**
      * THREAD-SAFE: Load containers with race condition protection
@@ -25,33 +26,33 @@ const CtcRepo = {
     async loadContainers(onSuccess, onError) {
         // CONCURRENCY: If already loading, return the same promise
         // BENEFIT: Multiple callers get same result, no duplicate API calls
-        if (this._loadingContainersPromise) {
-            return this._loadingContainersPromise;
+        if (this.#loadingContainersPromise) {
+            return this.#loadingContainersPromise;
         }
 
         // ATOMIC OPERATION: Create promise for this load cycle
-        this._loadingContainersPromise = this._doLoadContainers()
+        this.#loadingContainersPromise = this.#doLoadContainers()
             .finally(() => {
                 // CLEANUP: Always clear promise when done (success or failure)
                 // CRITICAL: Allows future loads after errors
-                this._loadingContainersPromise = null;
+                this.#loadingContainersPromise = null;
             });
 
         try {
-            const result = await this._loadingContainersPromise;
+            const result = await this.#loadingContainersPromise;
             if (onSuccess) onSuccess(result);
             return result;
         } catch (error) {
             if (onError) onError(error);
             else throw error;
         }
-    },
+    }
 
     /**
-     * INTERNAL: Actual container loading implementation
+     * INTERNAL: Actual container loading implementation (private)
      * SEPARATION: Keep loading logic separate from concurrency control
      */
-    async _doLoadContainers() {
+    async #doLoadContainers() {
         try {
             // BROWSER API: Query all Firefox containers
             const contextualIdentities = await browser.contextualIdentities.query({});
@@ -78,7 +79,7 @@ const CtcRepo = {
             ctcConsole.error('Failed to load containers:', error);
             throw error;
         }
-    },
+    }
 
     /**
      * THREAD-SAFE: Load rules with race condition protection
@@ -89,31 +90,31 @@ const CtcRepo = {
      */
     async loadRules(onSuccess, onError) {
         // CONCURRENCY: Prevent multiple simultaneous rule loads
-        if (this._loadingRulesPromise) {
-            return this._loadingRulesPromise;
+        if (this.#loadingRulesPromise) {
+            return this.#loadingRulesPromise;
         }
 
         // ATOMIC OPERATION: Single promise for this load cycle
-        this._loadingRulesPromise = this._doLoadRules()
+        this.#loadingRulesPromise = this.#doLoadRules()
             .finally(() => {
                 // CLEANUP: Always clear promise state
-                this._loadingRulesPromise = null;
+                this.#loadingRulesPromise = null;
             });
 
         try {
-            const result = await this._loadingRulesPromise;
+            const result = await this.#loadingRulesPromise;
             if (onSuccess) onSuccess(result);
             return result;
         } catch (error) {
             if (onError) onError(error);
             else throw error;
         }
-    },
+    }
 
     /**
-     * INTERNAL: Actual rules loading implementation
+     * INTERNAL: Actual rules loading implementation (private)
      */
-    async _doLoadRules() {
+    async #doLoadRules() {
         try {
             // STORAGE API: Get rules from Firefox sync storage
             const storage = await browser.storage.sync.get('ctcRules');
@@ -129,7 +130,7 @@ const CtcRepo = {
             ctcConsole.error('Failed to load rules:', error);
             throw error;
         }
-    },
+    }
 
     /**
      * BOOTSTRAP: Initialize both containers and rules with failure tracking
@@ -148,14 +149,14 @@ const CtcRepo = {
             };
 
             // SUCCESS: Reset failure flag
-            this._initializationFailed = false;
+            this.#initializationFailed = false;
             ctcConsole.info('Extension initialized successfully');
 
             if (onSuccess) onSuccess(result);
             return result;
         } catch (error) {
             // CRITICAL FAILURE: Mark extension as non-functional
-            this._initializationFailed = true;
+            this.#initializationFailed = true;
             ctcConsole.error('CRITICAL: Extension initialization failed - rules will not work');
             ctcConsole.error('Error details:', error);
             ctcConsole.error('User action: Try reloading the extension or restarting Firefox');
@@ -163,7 +164,7 @@ const CtcRepo = {
             if (onError) onError(error);
             else throw error;
         }
-    },
+    }
 
     /**
      * Get container data in different formats for different use cases
@@ -178,14 +179,14 @@ const CtcRepo = {
                 cookieStoreId
             }))
         };
-    },
+    }
 
     /**
      * Get current rules
      */
     getRules() {
         return this.rules;
-    },
+    }
 
     /**
      * Get existing data without re-initializing
@@ -213,7 +214,10 @@ const CtcRepo = {
             else throw error;
         }
     }
-};
+}
+
+// Create singleton instance
+const CtcRepo = new CtcRepository();
 
 // Make data repository available globally
 if (typeof window !== 'undefined') {

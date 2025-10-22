@@ -45,7 +45,7 @@ const recentTabRequests = new Map();
 // Track recent container switches to prevent duplicates in redirect chains (GENERIC SOLUTION)
 const recentContainerSwitches = new Map();
 
-// Main request handler
+// PUBLIC: Main request handler (used by webRequest listener)
 async function handleRequest(details) {
     try {
         ctcConsole.log(`Received request for ${details.url}`);
@@ -152,6 +152,7 @@ async function handleRequest(details) {
     }
 }
 
+// PRIVATE HELPERS: Module-scoped functions, effectively private
 // MEMORY MANAGEMENT: Prevent unbounded Map growth
 // PROBLEM: Heavy users can accumulate thousands of entries over time
 // TRIGGER: Only called during container switches (not regular browsing)

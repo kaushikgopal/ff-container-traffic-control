@@ -77,6 +77,8 @@ function supportsCompressionNatively() {
   );
 }
 
+// PRIVATE HELPERS: These functions are module-scoped and not exported
+// They're effectively private - only accessible within this file
 /**
  * Convert a base64 string to a Uint8Array (browser and Node compatible)
  * @param {string} base64String
@@ -154,7 +156,7 @@ function parseRulesJson(jsonString) {
  * @returns {Promise<string>}
  */
 async function encodeRulesForStorage(rules) {
-  ctcConsole.log("Encoding %s rules for storage:", rules.length);
+  ctcConsole.log(`Encoding ${rules.length} rules for storage`);
 
   if (!Array.isArray(rules)) {
     throw new Error("Rules must be an array before encoding.");

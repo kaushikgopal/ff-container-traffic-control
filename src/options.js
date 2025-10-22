@@ -18,10 +18,10 @@ class CtcOptions {
     }
 
     initializeEventListeners() {
-        document.getElementById('saveRulesTopBtn').addEventListener('click', () => this.saveRules());
-        document.getElementById('saveRulesBottomBtn').addEventListener('click', () => this.saveRules());
+        document.getElementById('saveRulesTopBtn').addEventListener('click', () => this.saveRulesFromUi());
+        document.getElementById('saveRulesBottomBtn').addEventListener('click', () => this.saveRulesFromUi());
         document.getElementById('exportBtn').addEventListener('click', () => this.exportRules());
-        document.getElementById('importBtn').addEventListener('click', () => this.importRules());
+        document.getElementById('importBtn').addEventListener('click', () => this.saveRulesFromImport());
     }
 
     // BOOTSTRAP: Load container and rule data from background script
@@ -584,9 +584,18 @@ class CtcOptions {
         return { errors, warnings };
     }
 
-    // COMMIT: Save user rules to extension storage
-    // CRITICAL: This is the only way users can persist their configuration
-    async saveRules() {
+    // PERSIST: Low-level storage operation (private)
+    // Encodes and saves rules to browser.storage.sync
+    async #saveRules(rules) {
+        const encodedRules = await encodeRulesForStorage(rules);
+        ctcConsole.log("saving to browser.storage.sync");
+        await browser.storage.sync.set({ ctcRules: encodedRules });
+        this.rules = rules;
+    }
+
+    // COMMIT: Save user rules from UI to extension storage
+    // CRITICAL: This is the only way users can persist their configuration via UI
+    async saveRulesFromUi() {
         this.clearValidationMessages();
 
         try {
@@ -620,12 +629,7 @@ class CtcOptions {
 
             // PERSIST: Write rules to Firefox sync storage
             // CRITICAL: This triggers background script to reload rules
-            const encodedRules = await encodeRulesForStorage(rules);
-
-            ctcConsole.log("saving to browser.storage.sync");
-            await browser.storage.sync.set({ ctcRules: encodedRules });
-
-            this.rules = rules; // Update local cache
+            await this.#saveRules(rules);
 
             // SUCCESS FEEDBACK: Confirm save to user
             const successMessage = `${rules.length} rules saved successfully`;
@@ -690,7 +694,7 @@ class CtcOptions {
 
     // IMPORT: Import rules from JSON
     // SAFETY: Full validation before replacing existing rules
-    async importRules() {
+    async saveRulesFromImport() {
         this.clearValidationMessages();
 
         try {
@@ -709,7 +713,7 @@ class CtcOptions {
             let importedRules;
             try {
                 importedRules = JSON.parse(jsonString);
-                ctcConsole.log("parsed %s rules", importedRules.length);
+                ctcConsole.log(`parsed ${importedRules.length} rules`);
             } catch (parseError) {
                 this.showValidationMessage('Invalid JSON format. Please check your input.', 'error');
                 ctcConsole.error('JSON parse error:', parseError);
@@ -740,14 +744,12 @@ class CtcOptions {
                 });
             }
 
-            ctcConsole.log("validated %s rules", importedRules.length);
+            ctcConsole.log(`validated ${importedRules.length} rules`);
 
             // COMMIT: Replace all rules in storage
-            const encodedRules = await encodeRulesForStorage(importedRules);
-            await browser.storage.sync.set({ ctcRules: encodedRules });
-            this.rules = importedRules; // Update local cache
+            await this.#saveRules(importedRules);
 
-            ctcConsole.log("saved and imported %s rules", importedRules.length);
+            ctcConsole.log(`saved and imported ${importedRules.length} rules`);
 
             // REFRESH: Re-render UI to show imported rules
             this.renderAllContainerGroups();
