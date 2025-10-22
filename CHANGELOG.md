@@ -2,6 +2,10 @@
 
 All notable changes to Container Traffic Control will be documented in this file.
 
+## [25.9.5] - fixes
+- bug fix: prevent duplicate container switches in redirect chains with generic cooldown tracking
+- enhancement: added rule compression using gzip to maximize storage capacity
+
 ## [25.9.4] - export/import feature
 - add: Export/import functionality for extension options
 

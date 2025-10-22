@@ -621,7 +621,10 @@ class CtcOptions {
             // PERSIST: Write rules to Firefox sync storage
             // CRITICAL: This triggers background script to reload rules
             const encodedRules = await encodeRulesForStorage(rules);
+
+            ctcConsole.log("saving to browser.storage.sync");
             await browser.storage.sync.set({ ctcRules: encodedRules });
+
             this.rules = rules; // Update local cache
 
             // SUCCESS FEEDBACK: Confirm save to user
@@ -691,6 +694,8 @@ class CtcOptions {
         this.clearValidationMessages();
 
         try {
+            ctcConsole.log("importing rules from user input");
+
             // HARVEST: Get JSON from input field
             const importInput = document.getElementById('importJsonInput');
             const jsonString = importInput.value.trim();
@@ -704,6 +709,7 @@ class CtcOptions {
             let importedRules;
             try {
                 importedRules = JSON.parse(jsonString);
+                ctcConsole.log("parsed %s rules", importedRules.length);
             } catch (parseError) {
                 this.showValidationMessage('Invalid JSON format. Please check your input.', 'error');
                 ctcConsole.error('JSON parse error:', parseError);
@@ -734,10 +740,14 @@ class CtcOptions {
                 });
             }
 
+            ctcConsole.log("validated %s rules", importedRules.length);
+
             // COMMIT: Replace all rules in storage
             const encodedRules = await encodeRulesForStorage(importedRules);
             await browser.storage.sync.set({ ctcRules: encodedRules });
             this.rules = importedRules; // Update local cache
+
+            ctcConsole.log("saved and imported %s rules", importedRules.length);
 
             // REFRESH: Re-render UI to show imported rules
             this.renderAllContainerGroups();
