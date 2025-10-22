@@ -68,6 +68,8 @@ ctcConsole.error('Error message');
 console.log('message'); // Don't do this
 ```
 
+Debug verbosity is controlled by `browser.storage.sync.ctcDebugLoggingEnabled`, which the options UI exposes as an “Enable debug logging” checkbox. Toggle it in automation by calling the global `setDebugLoggingEnabled(boolean)` helper so background and options contexts stay in sync.
+
 ## Rule System Logic
 
 ### Rule Evaluation Algorithm

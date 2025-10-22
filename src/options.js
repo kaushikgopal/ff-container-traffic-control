@@ -1,6 +1,30 @@
 // Container Traffic Control Options Page
 // Handles rule management, validation, and storage
 
+// ============================================================================
+// FIREFOX EXTENSION ARCHITECTURE: Options Page Context
+// ============================================================================
+// This file runs in a SEPARATE context from background.js (see background.js
+// header for full explanation of context isolation).
+//
+// OPTIONS CONTEXT (this file):
+//    - Runs in browser tab when user opens extension settings
+//    - Has its own independent CtcRepo instance (separate from background)
+//    - Must call CtcRepo.getData() to load containers and rules
+//    - Saves changes to browser.storage.sync (triggers background reload)
+//
+// DATA FLOW:
+//    1. User opens options → CtcRepo.getData() loads data into THIS context
+//    2. User modifies rules → Saved to browser.storage.sync
+//    3. Storage change event → Background context reloads via CtcRepo.loadRules()
+//    4. Navigation uses updated rules in background context
+//
+// SYNCHRONIZATION:
+//    - Options and background contexts stay in sync via browser.storage.sync
+//    - No direct variable sharing between contexts (by design)
+//    - This isolation prevents UI operations from blocking navigation
+// ============================================================================
+
 // MISSION CONTROL: User interface for managing container routing rules
 // FAILURE MODE: If this crashes, users can't modify rules (extension becomes read-only)
 class CtcOptions {
@@ -12,8 +36,10 @@ class CtcOptions {
         // DOM REFERENCES: Critical UI elements
         this.rulesTableBody = document.getElementById('rulesTableBody');
         this.validationMessages = document.getElementById('validationMessages');
+        this.debugLoggingCheckbox = document.getElementById('debugLoggingCheckbox');
 
         this.initializeEventListeners();
+        this.initializeDebugCheckbox();
         this.initializeData();
     }
 
@@ -22,11 +48,59 @@ class CtcOptions {
         document.getElementById('saveRulesBottomBtn').addEventListener('click', () => this.saveRulesFromUi());
         document.getElementById('exportBtn').addEventListener('click', () => this.exportRules());
         document.getElementById('importBtn').addEventListener('click', () => this.saveRulesFromImport());
+        if (this.debugLoggingCheckbox) {
+            this.debugLoggingCheckbox.addEventListener('change', () => this.handleDebugLoggingToggle());
+        } else {
+            ctcConsole.warn('Debug logging checkbox missing from options DOM; preference toggle unavailable.');
+        }
     }
 
-    // BOOTSTRAP: Load container and rule data from background script
+    // SIMPLIFIED: Debug checkbox initialization (utils.js handles the heavy lifting)
+    // utils.js already loads preferences and watches for changes, we just sync the UI
+    initializeDebugCheckbox() {
+        if (!this.debugLoggingCheckbox) {
+            return; // Checkbox missing, likely in test environment
+        }
+
+        // Sync checkbox with current debug state (utils.js already loaded this)
+        this.debugLoggingCheckbox.checked = typeof isDebugLoggingEnabled === 'function'
+            ? isDebugLoggingEnabled()
+            : false;
+    }
+
+    async handleDebugLoggingToggle() {
+        if (!this.debugLoggingCheckbox) {
+            return;
+        }
+
+        const enabled = this.debugLoggingCheckbox.checked;
+
+        try {
+            // Save to storage (this will trigger utils.js storage watcher in background context)
+            await browser.storage.sync.set({ ctcDebugLoggingEnabled: enabled });
+
+            // Update local context immediately
+            if (typeof setDebugLoggingEnabled === 'function') {
+                setDebugLoggingEnabled(enabled);
+            }
+
+            ctcConsole.info(`Debug logging ${enabled ? 'enabled' : 'disabled'} via options UI.`);
+        } catch (error) {
+            // Revert checkbox on error
+            this.debugLoggingCheckbox.checked = !enabled;
+            this.showValidationMessage('Failed to update debug logging preference.', 'error');
+            ctcConsole.error('Failed to save debug preference:', error);
+        }
+    }
+
+    // BOOTSTRAP: Load container and rule data into OPTIONS context
     // CRITICAL: This must succeed or user can't configure anything
+    // CONTEXT ISOLATION: This loads data into THIS context's CtcRepo instance
+    // NOTE: This is SEPARATE from background context's CtcRepo instance
+    // WHY: Firefox isolates background and options page JavaScript contexts
+    // WHAT: CtcRepo.getData() either returns cached data or calls initialize()
     initializeData() {
+        ctcConsole.info('[Options] Loading CtcRepo data...');
         CtcRepo.getData(
             (data) => {
                 // SUCCESS PATH: Data loaded successfully
@@ -209,167 +283,6 @@ class CtcOptions {
         }
     }
 
-    addRuleRow(existingRule = null) {
-        const row = document.createElement('tr');
-        row.className = 'rule-row';
-
-        // Create type selector
-        const typeSelect = this.createTypeSelect(existingRule?.action);
-
-        // Create container dropdown
-        const containerSelect = this.createContainerSelect(existingRule?.containerName);
-
-        // Create URL pattern input with validation
-        const urlPatternInput = this.createUrlPatternInput(existingRule?.urlPattern);
-
-        // Create high priority checkbox
-        const priorityCheckbox = this.createPriorityCheckbox(existingRule?.highPriority);
-
-        // Create delete button
-        const deleteButton = this.createDeleteButton(row);
-
-        // Create table cells and append elements safely
-        const typeCell = document.createElement('td');
-        typeCell.className = 'text-center';
-        typeCell.appendChild(typeSelect);
-
-        const containerCell = document.createElement('td');
-        containerCell.appendChild(containerSelect);
-
-        const urlPatternCell = document.createElement('td');
-        urlPatternCell.appendChild(urlPatternInput);
-
-        const priorityCell = document.createElement('td');
-        priorityCell.className = 'text-center';
-        priorityCell.appendChild(priorityCheckbox);
-
-        const deleteCell = document.createElement('td');
-        deleteCell.className = 'text-center';
-        deleteCell.appendChild(deleteButton);
-
-        // Append all cells to the row
-        row.appendChild(typeCell);
-        row.appendChild(containerCell);
-        row.appendChild(urlPatternCell);
-        row.appendChild(priorityCell);
-        row.appendChild(deleteCell);
-
-        // Add to single rules table
-        this.rulesTableBody.appendChild(row);
-
-        // Re-attach event listeners
-        this.attachRowEventListeners(row);
-    }
-
-    createContainerSelect(selectedContainer = '') {
-        const select = document.createElement('select');
-        select.className = 'container-select';
-        select.required = true;
-
-        // Add empty option
-        const emptyOption = document.createElement('option');
-        emptyOption.value = '';
-        emptyOption.textContent = 'Select Container';
-        select.appendChild(emptyOption);
-
-        // Add container options
-        this.containers.forEach(container => {
-            const option = document.createElement('option');
-            option.value = container.name;
-            option.textContent = container.name;
-            if (container.name === selectedContainer) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
-
-        return select;
-    }
-
-    createTypeSelect(selectedType = 'open') {
-        const select = document.createElement('select');
-        select.className = 'type-select';
-        select.required = true;
-
-        // Add options
-        const openOption = document.createElement('option');
-        openOption.value = 'open';
-        openOption.textContent = '🌐 Open';
-        openOption.title = 'Container accepts these URLs plus any others';
-        if (selectedType === 'open') {
-            openOption.selected = true;
-        }
-        select.appendChild(openOption);
-
-        const restrictedOption = document.createElement('option');
-        restrictedOption.value = 'restricted';
-        restrictedOption.textContent = '🔒 Restricted';
-        restrictedOption.title = 'Container ONLY accepts these URLs';
-        if (selectedType === 'restricted') {
-            restrictedOption.selected = true;
-        }
-        select.appendChild(restrictedOption);
-
-        return select;
-    }
-
-    createUrlPatternInput(existingPattern = '') {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'url-pattern-input';
-        input.placeholder = 'regulardomain.com or /regex pattern/';
-        input.value = existingPattern;
-        input.required = true;
-
-        return input;
-    }
-
-    createPriorityCheckbox(isHighPriority = false) {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'priority-checkbox';
-        checkbox.checked = isHighPriority || false;
-
-        return checkbox;
-    }
-
-    createDeleteButton(row) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-danger btn-small';
-        button.textContent = 'Delete';
-        button.onclick = () => this.deleteRuleRow(row);
-
-        return button;
-    }
-
-    attachRowEventListeners(row) {
-        // Add real-time validation for URL pattern input
-        const urlPatternInput = row.querySelector('.url-pattern-input');
-        urlPatternInput.addEventListener('input', (e) => this.validateUrlPattern(e.target));
-        urlPatternInput.addEventListener('input', () => this.validateRow(row));
-    }
-
-    deleteRuleRow(row) {
-        const tableBody = row.parentNode;
-        const totalRows = this.rulesTableBody.children.length;
-
-        if (totalRows > 1) {
-            row.remove();
-        } else {
-            // Keep at least one row, just clear it
-            this.clearRow(row);
-        }
-    }
-
-    clearRow(row) {
-        row.querySelector('.type-select').value = 'open';
-        row.querySelector('.container-select').value = '';
-        row.querySelector('.url-pattern-input').value = '';
-        row.querySelector('.priority-checkbox').checked = false;
-        this.clearRowValidation(row);
-    }
-
     validateUrlPattern(input) {
         const pattern = input.value.trim();
 
@@ -396,21 +309,6 @@ class CtcOptions {
         }
     }
 
-    validateRow(row) {
-        const urlPatternInput = row.querySelector('.url-pattern-input');
-        const action = row.querySelector('.type-select').value;
-        const pattern = urlPatternInput.value.trim();
-
-        // Check for invalid "Restricted" + "*" combination
-        if (action === 'restricted' && pattern === '*') {
-            this.setRowValidation(row, 'invalid', 'Invalid rule: "Restricted" with "*" pattern blocks all navigation');
-            return false;
-        } else {
-            this.clearRowValidation(row);
-            return true;
-        }
-    }
-
     setInputValidation(input, className, message) {
         input.className = input.className.replace(/\s*(valid|invalid)\s*/g, ' ').trim();
         if (className) {
@@ -430,22 +328,6 @@ class CtcOptions {
             messageElement.textContent = message;
             input.parentNode.appendChild(messageElement);
         }
-    }
-
-    setRowValidation(row, className, message) {
-        row.className = row.className.replace(/\s*(valid|invalid)\s*/g, ' ').trim();
-        if (className) {
-            row.className += ` ${className}`;
-        }
-
-        // Show global validation message
-        if (message) {
-            this.showValidationMessage(message, 'error');
-        }
-    }
-
-    clearRowValidation(row) {
-        row.className = row.className.replace(/\s*(valid|invalid)\s*/g, ' ').trim();
     }
 
     showValidationMessage(message, type = 'info') {

@@ -1,17 +1,59 @@
 // Container Traffic Control Data Repository
 // Centralized container and rule management
 
+// ============================================================================
+// EXECUTION CONTEXT ISOLATION: Why We Use Singletons
+// ============================================================================
+// CtcRepository is instantiated as a singleton (line 220) and exported globally
+// (lines 223-227). This pattern exists because:
+//
+// 1. FIREFOX CONTEXT ISOLATION:
+//    - Background and options contexts each get their OWN CtcRepo instance
+//    - window.CtcRepo in background ≠ window.CtcRepo in options
+//    - Each context's singleton holds that context's data independently
+//
+// 2. WHY SINGLETON WITHIN EACH CONTEXT:
+//    - Prevents multiple competing data caches in same context
+//    - Single source of truth for containers and rules per context
+//    - Enables race-condition-safe lazy loading (see concurrency notes below)
+//
+// 3. GLOBAL EXPORT PATTERN:
+//    - Exported to window (browser contexts) and globalThis (workers/tests)
+//    - Makes CtcRepo available across all scripts in same context
+//    - Does NOT share across contexts (background vs options)
+// ============================================================================
+
 /**
  * Centralized container and rule management
- * CRITICAL: Thread-safe data repository for background script
+ * CRITICAL: Thread-safe data repository with concurrency protection
  */
 class CtcRepository {
     // SHARED STATE: Accessed by multiple async operations
-    containerMap = new Map();
-    cookieStoreToNameMap = new Map();
-    rules = [];
+    containerMap = new Map();            // name → cookieStoreId
+    cookieStoreToNameMap = new Map();    // cookieStoreId → name
+    rules = [];                          // Array of rule objects
 
-    // CONCURRENCY CONTROL: Prevent race conditions during async loads (private)
+    // ========================================================================
+    // CONCURRENCY CONTROL: Race Condition Prevention (private fields)
+    // ========================================================================
+    // PROBLEM: Multiple async events can fire simultaneously:
+    //    - onCreated + onRemoved firing in rapid succession
+    //    - Multiple webRequests calling evaluateContainer concurrently
+    //    - Options page saving while background is loading
+    //
+    // FAILURE MODE: Without protection, concurrent loads corrupt Maps:
+    //    Thread A: containerMap.clear()
+    //    Thread B: containerMap.clear()  ← Clears A's partial data
+    //    Thread A: containerMap.set(...)  ← Writes incomplete data
+    //    Thread B: containerMap.set(...)  ← Overwrites with different data
+    //    Result: Inconsistent state, lost containers, broken navigation
+    //
+    // SOLUTION: Promise-based mutual exclusion
+    //    - Store in-flight load promise in #loadingContainersPromise
+    //    - Subsequent calls wait for same promise instead of starting new load
+    //    - All callers get consistent result from single load operation
+    //    - Promise cleared in .finally() to allow future loads
+    // ========================================================================
     #loadingContainersPromise = null;
     #loadingRulesPromise = null;
     #initializationFailed = false;
@@ -24,17 +66,30 @@ class CtcRepository {
      * @param {Function} onError - Optional error callback
      */
     async loadContainers(onSuccess, onError) {
-        // CONCURRENCY: If already loading, return the same promise
-        // BENEFIT: Multiple callers get same result, no duplicate API calls
+        // ====================================================================
+        // CONCURRENCY PROTECTION: Promise-based mutual exclusion
+        // ====================================================================
+        // SCENARIO: Container created and removed in rapid succession
+        //    Event 1: onCreated fires → calls loadContainers()
+        //    Event 2: onRemoved fires → calls loadContainers()
+        //    WITHOUT PROTECTION: Both start parallel loads → race condition
+        //
+        // SOLUTION: Store in-flight promise, reuse for concurrent callers
+        //    Call 1: No promise exists → create new load → store promise
+        //    Call 2: Promise exists → wait for same promise → no new load
+        //    Result: Single load, all callers get same consistent data
+        // ====================================================================
         if (this.#loadingContainersPromise) {
             return this.#loadingContainersPromise;
         }
 
         // ATOMIC OPERATION: Create promise for this load cycle
+        // CRITICAL: Assigned BEFORE any await to catch concurrent calls
         this.#loadingContainersPromise = this.#doLoadContainers()
             .finally(() => {
                 // CLEANUP: Always clear promise when done (success or failure)
-                // CRITICAL: Allows future loads after errors
+                // CRITICAL: Allows future loads after errors or completion
+                // TIMING: Cleared after load completes, before next call
                 this.#loadingContainersPromise = null;
             });
 
@@ -72,7 +127,7 @@ class CtcRepository {
                 this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
             });
 
-            ctcConsole.log(`Loaded ${this.containerMap.size} containers`);
+            ctcConsole.debug(`Loaded ${this.containerMap.size} containers`);
             return this.getContainerData();
         } catch (error) {
             // PROPAGATE: Let caller handle the error
@@ -124,7 +179,7 @@ class CtcRepository {
             // CRITICAL: Don't mutate existing array - other code might be iterating
             this.rules = decodedRules;
 
-            ctcConsole.log(`Loaded ${this.rules.length} rules`);
+            ctcConsole.debug(`Loaded ${this.rules.length} rules`);
             return this.rules;
         } catch (error) {
             ctcConsole.error('Failed to load rules:', error);
@@ -216,10 +271,26 @@ class CtcRepository {
     }
 }
 
-// Create singleton instance
+// ============================================================================
+// SINGLETON PATTERN: Create single instance for this execution context
+// ============================================================================
+// CRITICAL: This creates ONE instance per context (not shared across contexts)
+// - Background context gets its own CtcRepo instance
+// - Options context gets its own CtcRepo instance
+// - Both use same class, but maintain separate data
+//
+// WHY SINGLETON: Prevents multiple competing caches in same context
+// WHY SEPARATE INSTANCES: Firefox isolates background/options contexts
+// ============================================================================
 const CtcRepo = new CtcRepository();
 
-// Make data repository available globally
+// ============================================================================
+// GLOBAL EXPORT: Make available to all scripts in THIS context
+// ============================================================================
+// PATTERN: Export to window (browser) or globalThis (workers/tests)
+// SCOPE: Only available within same execution context
+// USAGE: Both background.js and options.js can access their context's CtcRepo
+// ============================================================================
 if (typeof window !== 'undefined') {
     window.CtcRepo = CtcRepo;
 } else {

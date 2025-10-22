@@ -71,6 +71,8 @@ Firefox → `about:debugging` → "This Firefox" → "Load Temporary Add-on" →
 
 `about:debugging` → "Container Traffic Control" → "Inspect" (console logs in DevTools Console; storage in Storage tab)
 
+Options → “Enable debug logging” checkbox flips verbose console output on demand; it is unchecked by default to keep consoles quiet.
+
 For detailed development guidance, see [AGENTS.md](AGENTS.md).
 
 ### Available Commands

@@ -1,6 +1,38 @@
 // Container Traffic Control Background Script
 // Handles URL redirection based on user-defined rules
 
+// ============================================================================
+// FIREFOX EXTENSION ARCHITECTURE: Execution Context Isolation
+// ============================================================================
+// Firefox extensions run in SEPARATE, ISOLATED JavaScript contexts:
+//
+// 1. BACKGROUND CONTEXT (this file):
+//    - Persistent service worker that runs continuously
+//    - Handles webRequest interception (navigation routing)
+//    - Has own instance of CtcRepo, ctcConsole, and all utils
+//    - Cannot directly access options page variables
+//
+// 2. OPTIONS CONTEXT (options.js):
+//    - Separate page that opens in browser tab
+//    - Manages UI for rule configuration
+//    - Has own independent instance of CtcRepo, ctcConsole, and all utils
+//    - Cannot directly access background script variables
+//
+// 3. COMMUNICATION:
+//    - Contexts share data through browser.storage.sync (persistent storage)
+//    - Changes in options page trigger storage.onChanged events in background
+//    - Each context must initialize its own CtcRepo instance
+//
+// This is why you see CtcRepo.initialize() called "twice" in logs:
+//    [Background] Initializing CtcRepo...  <- This context
+//    [Options] Loading CtcRepo data...     <- Different context
+//
+// This isolation is BY DESIGN and ensures:
+//    - Background script never blocks on UI operations
+//    - Options page can reload without affecting navigation
+//    - Extension remains responsive under all conditions
+// ============================================================================
+
 // CRITICAL: Main navigation interceptor - all page loads go through this
 // Using "blocking" mode means we can cancel/redirect requests before they complete
 // FAILURE MODE: If this crashes, all navigation breaks
@@ -27,22 +59,62 @@ browser.contextualIdentities.onRemoved.addListener(() => {
     CtcRepo.loadContainers();
 });
 
-// Initialize on startup
+// BOOTSTRAP: Initialize CtcRepo for BACKGROUND context
+// CRITICAL: This is one of TWO initialization calls (one per context)
+// WHY: Background and options run in separate JavaScript contexts
+// WHEN: Called once at extension startup (browser launch or reload)
+// WHAT: Loads containers + rules into this context's CtcRepo instance
+ctcConsole.info('[Background] Initializing CtcRepo...');
 CtcRepo.initialize();
 
-// Constants
-const EXPIRY_REDIRECT_MS = 2000; // 2 seconds
-const EXPIRY_TAB_REQUEST_MS = 1000; // 1 second
-const EXPIRY_CONTAINER_SWITCH_MS = 1500; // 1.5 seconds - prevent duplicate switches to same container
-const CLEANUP_SIZE_THRESHOLD = 100; // Clean up when Maps exceed this size
+// ============================================================================
+// DEDUPLICATION TRACKING: Prevent navigation loops and duplicate tabs
+// ============================================================================
+// PROBLEM: Firefox fires multiple webRequest events for same navigation:
+//    - HTTPS upgrades (http → https)
+//    - Internal security redirects
+//    - Service worker intercepts
+//    - Race conditions in tab creation
+//
+// FAILURE MODES without tracking:
+//    - Redirect loops (A→B→A→B→...)
+//    - Duplicate tabs for single click
+//    - Infinite container switching
+//
+// SOLUTION: Time-based deduplication with three tracking Maps:
+//    1. recentRedirections: Prevent same URL from being redirected repeatedly
+//    2. recentTabRequests: Prevent same tab+URL from being processed multiple times
+//    3. recentContainerSwitches: Prevent same container switch in quick succession
+//
+// EXPIRY TIMES: Tuned through testing to balance safety vs responsiveness
+//    - Too short: Loops and duplicates slip through
+//    - Too long: User can't quickly re-navigate to same URL
+//
+// MEMORY MANAGEMENT: Maps cleaned when size exceeds threshold (line ~114)
+// ============================================================================
 
-// Track recent redirections to prevent loops
+// TUNING CONSTANTS: Expiry durations for deduplication tracking
+const EXPIRY_REDIRECT_MS = 2000;           // 2s: URL-based redirect cooldown
+const EXPIRY_TAB_REQUEST_MS = 1000;        // 1s: Tab+URL processing cooldown
+const EXPIRY_CONTAINER_SWITCH_MS = 1500;   // 1.5s: Container switch cooldown
+const CLEANUP_SIZE_THRESHOLD = 100;        // Trigger cleanup when Maps exceed this size
+
+// TRACKING MAP 1: Prevent same URL from being redirected too frequently
+// KEY FORMAT: url (string)
+// VALUE: timestamp (number, Date.now())
+// PURPOSE: Prevents redirect loops (URL bouncing between containers)
 const recentRedirections = new Map();
 
-// Prevents duplicate processing of the same navigation request
+// TRACKING MAP 2: Prevent duplicate processing of same tab navigation
+// KEY FORMAT: "tabId-url" (string, e.g., "42-https://example.com")
+// VALUE: timestamp (number, Date.now())
+// PURPOSE: Prevents Firefox's multiple webRequest events from creating duplicate tabs
 const recentTabRequests = new Map();
 
-// Track recent container switches to prevent duplicates in redirect chains (GENERIC SOLUTION)
+// TRACKING MAP 3: Prevent duplicate container switches in redirect chains
+// KEY FORMAT: "fromContainer->toContainer" (string, e.g., "Personal->Work")
+// VALUE: timestamp (number, Date.now())
+// PURPOSE: Prevents redirect chains (Google, Microsoft) from switching multiple times
 const recentContainerSwitches = new Map();
 
 // PUBLIC: Main request handler (used by webRequest listener)
@@ -50,14 +122,30 @@ async function handleRequest(details) {
     try {
         ctcConsole.log(`Received request for ${details.url}`);
 
-        // SAFETY: Never redirect browser internal URLs
-        // FAILURE MODE: Redirecting about:config could break Firefox
+        // ====================================================================
+        // SAFETY CHECK 1: Never redirect privileged URLs
+        // ====================================================================
+        // PRIVILEGED URLS: about:*, moz-extension:*, chrome:*, resource:*
+        // WHY: These are internal Firefox/extension pages
+        // FAILURE MODE: Redirecting these breaks Firefox UI or causes crashes
+        // EXAMPLES: about:config, about:debugging, moz-extension://...
+        // ====================================================================
         if (isPrivilegedURL(details.url)) {
             return {};
         }
 
-        // EDGE CASE: tabId -1 means "no tab" - usually HTTP redirect artifacts
-        // Processing these creates phantom tabs that confuse users
+        // ====================================================================
+        // EDGE CASE: tabId -1 means "no associated tab"
+        // ====================================================================
+        // WHEN THIS HAPPENS:
+        //    - HTTP redirects (server-side 301/302)
+        //    - Background fetches (preload, prefetch)
+        //    - Service worker requests
+        //    - Browser internal requests
+        //
+        // WHY SKIP: Processing creates phantom tabs that confuse users
+        // ALTERNATIVE: Let these load in default container (no user impact)
+        // ====================================================================
         if (details.tabId === -1) {
             return {};
         }
@@ -76,12 +164,6 @@ async function handleRequest(details) {
         if (recentTabRequests.size > CLEANUP_SIZE_THRESHOLD ||
             recentRedirections.size > CLEANUP_SIZE_THRESHOLD ||
             recentContainerSwitches.size > CLEANUP_SIZE_THRESHOLD) {
-            pruneTrackingMaps();
-        }
-
-        // MAINTENANCE: Clean up when Maps get large to prevent memory bloat
-        if (recentTabRequests.size > CLEANUP_SIZE_THRESHOLD ||
-            recentRedirections.size > CLEANUP_SIZE_THRESHOLD) {
             pruneTrackingMaps();
         }
 
@@ -235,4 +317,3 @@ function evaluateContainer(url, currentCookieStoreId) {
 
     return containerMap.get(targetContainerName) || 'firefox-default';
 }
-
