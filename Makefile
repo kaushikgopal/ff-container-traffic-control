@@ -19,9 +19,12 @@ build:		## build Firefox extension package
 	@echo "🔨 Building Firefox extension..."
 	@web-ext build --overwrite-dest
 
-test:		## run unit tests for rule engine
-	@echo "🧪 Running rule engine tests..."
+test:		## run all unit tests
+	@echo "🧪 Running all tests..."
+	@echo ""
 	@node test/rule-engine-test.js
+	@echo ""
+	@node test/test-compression-large-ruleset.js
 
 lint:		## validate extension code and manifest
 	@echo "🔍 Linting extension..."
