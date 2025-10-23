@@ -3,12 +3,12 @@
 
 // Import the rule engine and utilities
 const { evaluateContainerForUrl } = require('../src/rule-engine.js');
+const { matchesPattern } = require('../src/pattern-matching.js');
 const {
-    matchesPattern,
     encodeRulesForStorage,
     decodeRulesFromStorage,
-    hasCompressionStreams
-} = require('../src/utils.js');
+    supportsCompressionNatively
+} = require('../src/storage-compression.js');
 const containerizeRules = require('./fixtures/containerize-personal-rules.json');
 
 // Simple test framework
