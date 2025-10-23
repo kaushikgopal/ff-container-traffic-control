@@ -2,7 +2,7 @@
 
 All notable changes to Container Traffic Control will be documented in this file.
 
-## [25.9.5] - fixes
+## [25.10.2] - rule compression + debug log preferences
 - feature: added rule compression using gzip to maximize storage capacity
 - feature: debug logging toggle in options page to control verbose logging
 - bug fix: prevent duplicate container switches in redirect chains with generic cooldown tracking
