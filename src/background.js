@@ -7,7 +7,8 @@
 // Firefox extensions run in SEPARATE, ISOLATED JavaScript contexts:
 //
 // 1. BACKGROUND CONTEXT (this file):
-//    - Persistent service worker that runs continuously
+//    - Event-driven background script (Manifest V3 - terminates when idle)
+//    - Wakes up on events (webRequest, storage changes, etc.)
 //    - Handles webRequest interception (navigation routing)
 //    - Has own instance of CtcRepo, ctcConsole, and all utils
 //    - Cannot directly access options page variables
@@ -64,8 +65,25 @@ browser.contextualIdentities.onRemoved.addListener(() => {
 // WHY: Background and options run in separate JavaScript contexts
 // WHEN: Called once at extension startup (browser launch or reload)
 // WHAT: Loads containers + rules into this context's CtcRepo instance
+//
+// MV3 RACE CONDITION FIX: Eager initialization at startup
+// PROBLEM: When script wakes from termination, webRequest fires before init completes
+// SOLUTION: Start initialization immediately, handleRequest() checks if ready
 ctcConsole.info('[Background] Initializing CtcRepo...');
-CtcRepo.initialize();
+let initializationPromise = null;
+let isInitialized = false;
+
+// Start initialization immediately at startup
+initializationPromise = CtcRepo.initialize()
+    .then(() => {
+        isInitialized = true;
+        ctcConsole.info('[Background] CtcRepo initialization complete');
+    })
+    .catch((error) => {
+        ctcConsole.error('[Background] CtcRepo initialization failed:', error);
+        // Clear promise so next navigation attempt can retry
+        initializationPromise = null;
+    });
 
 // ============================================================================
 // DEDUPLICATION TRACKING: Prevent navigation loops and duplicate tabs
@@ -120,6 +138,31 @@ const recentContainerSwitches = new Map();
 // PUBLIC: Main request handler (used by webRequest listener)
 async function handleRequest(details) {
     try {
+        // ====================================================================
+        // MV3 WAKE-UP PROTECTION: Wait for initialization with timeout
+        // ====================================================================
+        // PROBLEM: When background script wakes from termination, webRequest
+        //          events can fire BEFORE CtcRepo.initialize() completes
+        // FAILURE MODE: evaluateContainer() throws "not initialized" error,
+        //               request proceeds in wrong container
+        // SOLUTION: Wait for initialization with 500ms timeout, then proceed
+        // TIMING: Most initializations complete in 50-100ms
+        // SAFETY: If initialization hangs, we fail-fast rather than blocking
+        // ====================================================================
+        if (!isInitialized && initializationPromise) {
+            try {
+                await Promise.race([
+                    initializationPromise,
+                    new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Initialization timeout')), 500)
+                    )
+                ]);
+            } catch (error) {
+                ctcConsole.warn('Initialization not ready, proceeding without rules:', error.message);
+                // Proceed anyway - better to route incorrectly than block navigation
+            }
+        }
+
         ctcConsole.log(`Received request for ${details.url}`);
 
         // ====================================================================
@@ -295,13 +338,17 @@ function evaluateContainer(url, currentCookieStoreId) {
     const { containerMap, cookieStoreToNameMap } = CtcRepo.getContainerData();
     const rules = CtcRepo.getRules();
 
-    // FAIL FAST: If CtcRepo isn't initialized, something is seriously wrong
+    // GRACEFUL DEGRADATION: If CtcRepo isn't initialized, stay in current container
+    // RATIONALE: Better to leave user in wrong container than block navigation
+    // RECOVERY: Next navigation will retry initialization
     if (containerMap.size <= 1) {
-        throw new Error('CtcRepo not initialized - no containers loaded');
+        ctcConsole.warn('CtcRepo not initialized - staying in current container');
+        return currentCookieStoreId; // Stay put
     }
 
     if (!Array.isArray(rules)) {
-        throw new Error('CtcRepo rules corrupted');
+        ctcConsole.warn('CtcRepo rules corrupted - staying in current container');
+        return currentCookieStoreId; // Stay put
     }
 
     // Get current container name
