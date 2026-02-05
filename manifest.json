@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Container Traffic Control",
   "description": "Control which container a website will open up in based on a set of rules.",
-  "version": "25.10.3",
+  "version": "26.2.1",
   "author": "Kaushik Gopal (https://kau.sh)",
   "icons": {
     "16": "icons/icon-16.png",
