@@ -224,8 +224,9 @@ async function handleRequest(details) {
       return {}; // Skip - we just redirected this URL recently
     }
 
-    // Get current container
-    const currentCookieStoreId = await getCurrentContainer(details.tabId);
+    // Get current container and tab state (active = foreground, !active = background)
+    const { cookieStoreId: currentCookieStoreId, active: tabWasActive } =
+      await getTabInfo(details.tabId);
     const { cookieStoreToNameMap } = CtcRepo.getContainerData();
     const currentContainerName =
       cookieStoreToNameMap.get(currentCookieStoreId) || "No Container";
@@ -272,9 +273,11 @@ async function handleRequest(details) {
 
       // ATOMIC OPERATION: Create new tab in correct container
       // FAILURE MODE: If this fails, user loses navigation entirely
+      // ACTIVE STATE: Preserve user's foreground/background intent (Cmd+Shift+click = background)
       const newTab = await browser.tabs.create({
         url: details.url,
         cookieStoreId: targetCookieStoreId,
+        active: tabWasActive, // false = background tab, true = foreground
         index: details.tabId >= 0 ? undefined : 0,
       });
 
@@ -339,19 +342,26 @@ function isPrivilegedURL(url) {
   );
 }
 
-// LOOKUP: Determine which container a tab is currently in
+// LOOKUP: Determine which container a tab is currently in and its active state
 // EDGE CASE: tabId < 0 means "new tab" or system-generated navigation
-async function getCurrentContainer(tabId) {
-  if (tabId < 0) return "firefox-default"; // New tab has no container
+// RETURNS: { cookieStoreId: string, active: boolean }
+async function getTabInfo(tabId) {
+  if (tabId < 0) {
+    // New tab has no container, default to foreground
+    return { cookieStoreId: "firefox-default", active: true };
+  }
 
   try {
     const tab = await browser.tabs.get(tabId);
     // FALLBACK: Some tabs have no cookieStoreId (private browsing, etc)
-    return tab.cookieStoreId || "firefox-default";
+    return {
+      cookieStoreId: tab.cookieStoreId || "firefox-default",
+      active: tab.active, // Preserve background/foreground intent
+    };
   } catch (error) {
     // RECOVERY: Tab might have been closed while we were processing
     ctcConsole.error("Failed to get tab info:", error);
-    return "firefox-default"; // Safe default
+    return { cookieStoreId: "firefox-default", active: true }; // Safe defaults
   }
 }
 
