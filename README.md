@@ -43,6 +43,7 @@ These are the primary use cases. CTC also handles subtle scenarios like open/res
 # Features
 
 - Intuitive Rule setup for Containers (explained below)
+- Open all bookmarks in a container (right-click any bookmark folder)
 - uses Firefox's native add-on sync across all platforms
 - quick export/import of settings
 
@@ -58,6 +59,9 @@ Now use Firefox normally. CTC acts as traffic control, routing links to the righ
 <img width="1452" height="1146" alt="screenshot_20250928_002931@2x" src="https://github.com/user-attachments/assets/1e68dcaf-29f5-49eb-9017-9ffa0521d2a5" />
 <img width="1628" height="2841" alt="screenshot_20250928_002932@2x" src="https://github.com/user-attachments/assets/696217c6-56f2-4aaf-a441-660c74f460c8" />
 
+## Open All Bookmarks in Container
+
+Right-click any bookmark folder and select "Open All in Container" to open all bookmarks in a specific container. Pick from No Container or any of your existing containers. This is useful when you have a folder of work-related bookmarks and want to open them all in your Work container at once.
 
 # Installation & Development
 
