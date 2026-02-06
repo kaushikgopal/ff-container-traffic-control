@@ -16,7 +16,9 @@
     "tabs",
     "cookies",
     "contextualIdentities",
-    "storage"
+    "storage",
+    "bookmarks",
+    "menus"
   ],
   "host_permissions": ["<all_urls>"],
   "optional_host_permissions": ["<all_urls>"],
@@ -27,7 +29,8 @@
       "src/storage-compression.js",
       "src/rule-engine.js",
       "src/ctc-repository.js",
-      "src/background.js"
+      "src/background.js",
+      "src/bookmark-menu.js"
     ]
   },
   "options_ui": {
