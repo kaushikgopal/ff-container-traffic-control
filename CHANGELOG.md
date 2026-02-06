@@ -3,6 +3,11 @@
 All notable changes to Container Traffic Control will be documented in this
 file.
 
+## [26.2.2] - open all bookmarks in container
+
+- feature: right-click bookmark folders to open all bookmarks in a selected
+  container ("Open All in Container" submenu)
+
 ## [26.2.1] - background tab fix
 
 - bug fix: preserve background tab state when switching containers
