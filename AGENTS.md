@@ -27,7 +27,9 @@ make clean    # Remove build artifacts
 - **src/ctc-repository.js**: Thread-safe data repository (CtcRepo) managing containers and rules
 - **src/rule-engine.js**: Pure rule evaluation logic (testable, no browser dependencies)
 - **src/options.js**: Settings UI with rule management table
-- **src/utils.js**: Shared utilities (ctcConsole logging, pattern matching)
+- **src/bookmark-menu.js**: Context menu for opening bookmark folders in containers
+- **src/logging.js**: Debug-aware console logging (ctcConsole)
+- **src/pattern-matching.js**: URL pattern matching utilities
 
 ### Data Flow
 1. **Background script**: Owns CtcRepo initialization, intercepts all navigation
@@ -35,7 +37,7 @@ make clean    # Remove build artifacts
 3. **Rule engine**: Pure function evaluating which container to use for a URL
 
 ### Critical Loading Order
-`manifest.json` script order: `utils.js` → `rule-engine.js` → `ctc-repository.js` → `background.js`
+`manifest.json` script order: `logging.js` → `pattern-matching.js` → `storage-compression.js` → `rule-engine.js` → `ctc-repository.js` → `background.js` → `bookmark-menu.js`
 
 ## Development Patterns
 
