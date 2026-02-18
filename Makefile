@@ -19,12 +19,16 @@ build:		## build Firefox extension package
 	@echo "🔨 Building Firefox extension..."
 	@web-ext build --overwrite-dest
 
-test:		## run all unit tests
-	@echo "🧪 Running all tests..."
+test:		## run unit tests
+	@echo "🧪 Running unit tests..."
 	@echo ""
 	@node test/rule-engine-test.js
 	@echo ""
 	@node test/test-compression-large-ruleset.js
+
+test-integration:		## run integration tests (requires npm install)
+	@echo "🧪 Running integration tests..."
+	@node test/integration.js
 
 lint:		## validate extension code and manifest
 	@echo "🔍 Linting extension..."
@@ -38,4 +42,4 @@ clean:		## remove build artifacts
 	@echo "🧹 Cleaning build artifacts..."
 	@rm -rf web-ext-artifacts/
 
-.PHONY: help build test lint run clean
+.PHONY: help build test test-integration lint run clean

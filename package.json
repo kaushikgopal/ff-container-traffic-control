@@ -1,0 +1,15 @@
+{
+  "name": "ff-container-traffic-control",
+  "version": "26.2.2",
+  "private": true,
+  "description": "Control which container a website will open up in based on a set of rules.",
+  "scripts": {
+    "test": "node test/rule-engine-test.js && node test/test-compression-large-ruleset.js",
+    "test:integration": "node test/integration.js"
+  },
+  "dependencies": {
+    "geckodriver": "^6.1.0",
+    "selenium-webdriver": "^4.40.0",
+    "selenium-webext-bridge": "^0.2.0"
+  }
+}
