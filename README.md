@@ -82,12 +82,13 @@ For detailed development guidance, see [AGENTS.md](AGENTS.md).
 ### Available Commands
 
 ```bash
-make help    # Show all available commands
-make build   # Build extension package (default)
-make test    # Run unit tests for rule engine
-make lint    # Validate extension code and manifest
-make run     # Run extension in Firefox for development
-make clean   # Remove build artifacts
+make help              # Show all available commands
+make build             # Build extension package (default)
+make test              # Run unit tests
+make test-integration  # Run integration tests (requires npm install)
+make lint              # Validate extension code and manifest
+make run               # Run extension in Firefox for development
+make clean             # Remove build artifacts
 ```
 
 ### Quick Start
@@ -100,10 +101,13 @@ make clean   # Remove build artifacts
 ## On testing
 
 ```bash
-make test  # Run rule engine tests
+make test              # Run unit tests (no external dependencies)
+make test-integration  # Run integration tests (requires npm install)
 ```
 
-Tests cover pattern matching, rule evaluation, container switching, priority handling, and edge cases. Located in `test/rule-engine-test.js` (runnable as `node test/rule-engine-test.js`). No external dependencies.
+Unit tests cover pattern matching, rule evaluation, container switching, priority handling, and edge cases. Located in `test/rule-engine-test.js`. No external dependencies.
+
+Integration tests use [selenium-webext-bridge](https://www.npmjs.com/package/selenium-webext-bridge) to launch Firefox and exercise the options page UI: container rendering, rule creation, save/load, import/export, and clearing. Run `npm install` first to install test dependencies.
 
 ## Changelog
 
