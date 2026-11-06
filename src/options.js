@@ -125,17 +125,17 @@ class CtcOptions {
         this.rulesTableBody.innerHTML = '';
 
         // Group existing rules by container
-        const rulesByContainer = {};
+        const rulesByContainer = new Map();
         this.rules.forEach(rule => {
-            if (!rulesByContainer[rule.containerName]) {
-                rulesByContainer[rule.containerName] = [];
+            if (!rulesByContainer.has(rule.containerName)) {
+                rulesByContainer.set(rule.containerName, []);
             }
-            rulesByContainer[rule.containerName].push(rule);
+            rulesByContainer.get(rule.containerName).push(rule);
         });
 
         // Render each container (including ones without rules)
         this.containers.forEach(container => {
-            const containerRules = rulesByContainer[container.name] || [];
+            const containerRules = rulesByContainer.get(container.name) || [];
             this.renderContainerGroup(container.name, containerRules);
         });
     }
@@ -398,24 +398,49 @@ class CtcOptions {
         const errors = [];   // BLOCKING: Must fix these to save
         const warnings = []; // ADVISORY: Should consider fixing
 
+        // Validate imported records before any rule logic accesses their fields
+        rules.forEach((rule, index) => {
+            if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+                errors.push(`Rule ${index + 1}: Must be an object.`);
+                return;
+            }
+            if (typeof rule.containerName !== 'string' || !rule.containerName.trim()) {
+                errors.push(`Rule ${index + 1}: Container name must be a non-empty string.`);
+            }
+            if (rule.action !== 'open' && rule.action !== 'restricted') {
+                errors.push(`Rule ${index + 1}: Action must be 'open' or 'restricted'.`);
+            }
+            if (typeof rule.urlPattern !== 'string' || !rule.urlPattern) {
+                errors.push(`Rule ${index + 1}: URL pattern must be a non-empty string.`);
+            }
+            if (Object.prototype.hasOwnProperty.call(rule, 'highPriority') && typeof rule.highPriority !== 'boolean') {
+                errors.push(`Rule ${index + 1}: High priority must be a boolean when provided.`);
+            }
+        });
+        if (errors.length > 0) {
+            return { errors, warnings };
+        }
+
         // CRITICAL CHECK: Container rule consistency
         // PROBLEM: Mixing "open" and "restricted" rules creates undefined behavior
         // EXAMPLE: Work container with both "allow github.com" and "only allow work.com"
-        const containerRules = {};
+        const containerRules = new Map();
         rules.forEach((rule, index) => {
-            if (!containerRules[rule.containerName]) {
-                containerRules[rule.containerName] = { open: 0, restricted: 0, ruleNumbers: [] };
+            const name = rule.containerName;
+            if (!containerRules.has(name)) {
+                containerRules.set(name, { open: 0, restricted: 0, ruleNumbers: [] });
             }
+            const counts = containerRules.get(name);
             if (rule.action === 'open') {
-                containerRules[rule.containerName].open++;
+                counts.open++;
             } else if (rule.action === 'restricted') {
-                containerRules[rule.containerName].restricted++;
+                counts.restricted++;
             }
-            containerRules[rule.containerName].ruleNumbers.push(index + 1);
+            counts.ruleNumbers.push(index + 1);
         });
 
         // ENFORCE: No mixed rule types per container
-        for (const [container, counts] of Object.entries(containerRules)) {
+        for (const [container, counts] of containerRules) {
             if (counts.open > 0 && counts.restricted > 0) {
                 errors.push(`Container "${container}" cannot mix 'open' and 'restricted' rules. All rules for a container must be the same type.`);
             }
@@ -445,26 +470,26 @@ class CtcOptions {
 
         // PRECEDENCE ANALYSIS: Check for conflicting high-priority rules
         // ISSUE: Multiple high-priority rules for same pattern create ambiguity
-        const highPriorityPatterns = {};
+        const highPriorityPatterns = new Map();
         rules.forEach((rule, index) => {
             if (rule.highPriority) {
-                if (highPriorityPatterns[rule.urlPattern]) {
-                    highPriorityPatterns[rule.urlPattern].push(index + 1);
-                } else {
-                    highPriorityPatterns[rule.urlPattern] = [index + 1];
+                if (!highPriorityPatterns.has(rule.urlPattern)) {
+                    highPriorityPatterns.set(rule.urlPattern, []);
                 }
+                highPriorityPatterns.get(rule.urlPattern).push(index + 1);
             }
         });
 
         // WARN: Multiple high-priority rules - behavior is implementation dependent
-        Object.entries(highPriorityPatterns).forEach(([pattern, ruleNumbers]) => {
+        for (const [pattern, ruleNumbers] of highPriorityPatterns) {
             if (ruleNumbers.length > 1) {
                 warnings.push(`Pattern "${pattern}" has multiple high priority rules (${ruleNumbers.join(', ')}). Only one will be used.`);
             }
-        });
+        }
 
         return { errors, warnings };
     }
+
 
     // PERSIST: Low-level storage operation (private)
     // Encodes and saves rules to browser.storage.sync
