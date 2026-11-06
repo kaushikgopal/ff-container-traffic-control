@@ -61,6 +61,9 @@ browser.contextualIdentities.onCreated.addListener(() => {
 browser.contextualIdentities.onRemoved.addListener(() => {
   CtcRepo.loadContainers();
 });
+browser.contextualIdentities.onUpdated.addListener(() => {
+  CtcRepo.loadContainers();
+});
 
 // BOOTSTRAP: Initialize CtcRepo for BACKGROUND context
 // CRITICAL: This is one of TWO initialization calls (one per context)
@@ -330,6 +333,9 @@ function evaluateContainer(url, currentCookieStoreId) {
   );
 
   // Convert container name back to cookieStoreId
+  if (targetContainerName === currentContainerName) {
+    return currentCookieStoreId;
+  }
   if (targetContainerName === "No Container") {
     return "firefox-default";
   }

@@ -87,7 +87,7 @@ function evaluateContainerForUrl(url, currentContainerName, rules, containerMap)
     // ========================================================================
     const allowedContainers = [];
     rules.forEach((rule, index) => {
-        if (matchesPattern(url, rule.urlPattern)) {
+        if (containerMap.has(rule.containerName) && matchesPattern(url, rule.urlPattern)) {
             allowedContainers.push({
                 name: rule.containerName,
                 highPriority: rule.highPriority,

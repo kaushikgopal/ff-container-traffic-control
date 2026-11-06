@@ -124,6 +124,10 @@ class CtcRepository {
 
             // POPULATE: Add all user containers
             contextualIdentities.forEach(identity => {
+                if (identity.name === 'No Container') {
+                    this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
+                    return;
+                }
                 this.containerMap.set(identity.name, identity.cookieStoreId);
                 this.cookieStoreToNameMap.set(identity.cookieStoreId, identity.name);
             });

@@ -27,6 +27,7 @@ test:		## run all unit tests
 	@node test/bookmark-menu-test.js
 	@node test/background-issue-1-test.js
 	@node test/repository-issue-2-test.js
+	@node test/background-issue-4-test.js
 	@node test/test-compression-large-ruleset.js
 
 lint:		## validate extension code and manifest
