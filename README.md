@@ -87,6 +87,7 @@ make build   # Build extension package (default)
 make test    # Run unit tests for rule engine
 make lint    # Validate extension code and manifest
 make run     # Run extension in Firefox for development
+make release # Tag the manifest version and push it to publish
 make clean   # Remove build artifacts
 ```
 
@@ -104,6 +105,25 @@ make test  # Run rule engine tests
 ```
 
 Tests cover pattern matching, rule evaluation, container switching, priority handling, and edge cases. Located in `test/rule-engine-test.js` (runnable as `node test/rule-engine-test.js`). No external dependencies.
+
+## Releasing
+
+GitHub Actions runs `make test` and `make lint` on every push to `master` and on every pull request. The release workflow (`.github/workflows/release.yml`) runs when a `v<version>` tag is pushed. It checks that the tag matches `manifest.json`, then runs the tests, builds the package, submits it to addons.mozilla.org on the listed channel, and creates a GitHub release with the matching `CHANGELOG.md` notes.
+
+One-time setup:
+
+1. Create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/.
+2. In the GitHub repository settings, create an environment named `amo`.
+3. Add the secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` to that environment.
+
+Each release:
+
+1. Update `version` in `manifest.json` and add a `CHANGELOG.md` entry.
+2. Commit both files on `master`.
+3. Run `make release`.
+
+AMO review then runs as normal. The workflow does not wait for approval.
+
 
 ## Changelog
 

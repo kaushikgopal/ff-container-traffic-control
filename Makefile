@@ -41,8 +41,15 @@ run:		## run extension in Firefox for development
 	@echo "🚀 Starting Firefox with extension..."
 	@web-ext run
 
+release:		## tag the manifest version and push it to start the AMO release workflow
+	@test "$$(git branch --show-current)" = master || { echo "Run from master"; exit 1; }
+	@test -z "$$(git status --porcelain --untracked-files=no)" || { echo "Commit changes first"; exit 1; }
+	@version=$$(node -p "require('./manifest.json').version"); \
+	git tag -a "v$$version" -m "Release $$version" && \
+	git push origin master "v$$version"
+
 clean:		## remove build artifacts
 	@echo "🧹 Cleaning build artifacts..."
 	@rm -rf web-ext-artifacts/
 
-.PHONY: help build test lint run clean
+.PHONY: help build test lint run release clean
