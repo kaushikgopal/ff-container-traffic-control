@@ -137,6 +137,38 @@ test('ISSUE-9 saves and reloads an intentional empty rule set', async () => {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(reloaded.options.rules)), []);
 });
 
+test('ISSUE-10 accepts literal metacharacters and valid wrapped regular expressions', async () => {
+  const harness = createOptionsHarness();
+  const rules = [
+    { containerName: 'Work', action: 'open', urlPattern: 'foo[', highPriority: false },
+    { containerName: 'Work', action: 'open', urlPattern: '/foo\\.test/', highPriority: false },
+  ];
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(harness.options.validateAllRules(rules).errors)), []);
+  assert.strictEqual(harness.evaluate('matchesPattern("https://foo[.example/", "foo[")'), true);
+  assert.strictEqual(harness.evaluate('matchesPattern("https://foo.test/", "/foo\\\\.test/")'), true);
+  harness.elements.importJsonInput.value = JSON.stringify(rules);
+  await harness.options.saveRulesFromImport();
+  assert.strictEqual(harness.writes.length, 1);
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'foo[');
+  assert.strictEqual(harness.storageData.ctcRules[1].urlPattern, '/foo\\.test/');
+});
+
+test('ISSUE-10 rejects an invalid wrapped regular expression on Save and Import', async () => {
+  const invalidPattern = '/' + '\\' + '/';
+  const harness = createOptionsHarness();
+  const typeSelect = harness.elements.rulesTableBody.querySelector('.container-type-select');
+  typeSelect.value = 'open';
+  harness.options.handleContainerTypeChange(typeSelect);
+  harness.elements.rulesTableBody.querySelector('.url-pattern-input').value = invalidPattern;
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(harness.writes.length, 0);
+  harness.elements.importJsonInput.value = JSON.stringify([{
+    containerName: 'Work', action: 'open', urlPattern: invalidPattern, highPriority: false,
+  }]);
+  await harness.options.saveRulesFromImport();
+  assert.strictEqual(harness.writes.length, 0);
+});
+
 (async () => {
   let failures = 0;
   for (const { name, run } of tests) {

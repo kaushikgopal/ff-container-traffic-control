@@ -470,12 +470,13 @@ class CtcOptions {
                 warnings.push(`Rule ${index + 1}: Wildcard pattern '.*' reduces privacy - use specific patterns when possible`);
             }
 
-            // SYNTAX CHECK: Ensure regex patterns are valid
-            // FAILURE MODE: Invalid regex crashes rule evaluation
-            try {
-                new RegExp(rule.urlPattern);
-            } catch (error) {
-                errors.push(`Rule ${index + 1}: Invalid regex pattern "${rule.urlPattern}"`);
+            // SYNTAX CHECK: Match the runtime's slash-delimited regex mode
+            if (rule.urlPattern.startsWith('/') && rule.urlPattern.endsWith('/') && rule.urlPattern.length > 2) {
+                try {
+                    new RegExp(rule.urlPattern.slice(1, -1));
+                } catch (error) {
+                    errors.push(`Rule ${index + 1}: Invalid regex pattern "${rule.urlPattern}"`);
+                }
             }
         });
 
