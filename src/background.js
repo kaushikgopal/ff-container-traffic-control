@@ -48,7 +48,9 @@ browser.webRequest.onBeforeRequest.addListener(
 
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (changes.ctcRules && areaName === "sync") {
-    CtcRepo.loadRules();
+    CtcRepo.loadRules().catch((error) => {
+      ctcConsole.error("[Background] Failed to reload rules:", error);
+    });
   }
 });
 

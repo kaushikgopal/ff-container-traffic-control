@@ -56,6 +56,7 @@ class CtcRepository {
     // ========================================================================
     #loadingContainersPromise = null;
     #loadingRulesPromise = null;
+    #reloadRulesRequested = false;
     #initializationFailed = false;
 
     /**
@@ -146,14 +147,14 @@ class CtcRepository {
     async loadRules(onSuccess, onError) {
         // CONCURRENCY: Prevent multiple simultaneous rule loads
         if (this.#loadingRulesPromise) {
+            this.#reloadRulesRequested = true;
             return this.#loadingRulesPromise;
         }
 
-        // ATOMIC OPERATION: Single promise for this load cycle
-        this.#loadingRulesPromise = this.#doLoadRules()
+        this.#loadingRulesPromise = this.#loadRulesAndDrain()
             .finally(() => {
-                // CLEANUP: Always clear promise state
                 this.#loadingRulesPromise = null;
+                this.#reloadRulesRequested = false;
             });
 
         try {
@@ -163,6 +164,24 @@ class CtcRepository {
         } catch (error) {
             if (onError) onError(error);
             else throw error;
+        }
+
+    }
+
+    async #loadRulesAndDrain() {
+        let result;
+        while (true) {
+            this.#reloadRulesRequested = false;
+            let loadError;
+            try {
+                result = await this.#doLoadRules();
+            } catch (error) {
+                loadError = error;
+            }
+            if (!this.#reloadRulesRequested) {
+                if (loadError) throw loadError;
+                return result;
+            }
         }
     }
 
