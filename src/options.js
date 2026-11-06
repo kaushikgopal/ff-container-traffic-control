@@ -56,17 +56,37 @@ class CtcOptions {
         }
     }
 
-    // SIMPLIFIED: Debug checkbox initialization (utils.js handles the heavy lifting)
-    // utils.js already loads preferences and watches for changes, we just sync the UI
     initializeDebugCheckbox() {
         if (!this.debugLoggingCheckbox) {
-            return; // Checkbox missing, likely in test environment
+            return;
         }
 
-        // Sync checkbox with current debug state (utils.js already loaded this)
-        this.debugLoggingCheckbox.checked = typeof isDebugLoggingEnabled === 'function'
+        this.debugLoggingPreference = typeof isDebugLoggingEnabled === 'function'
             ? isDebugLoggingEnabled()
             : false;
+        this.debugPreferenceRevision = 0;
+        this.debugLoggingCheckbox.checked = this.debugLoggingPreference;
+
+        browser.storage.onChanged.addListener((changes, area) => {
+            if (area === 'sync' && Object.prototype.hasOwnProperty.call(changes, 'ctcDebugLoggingEnabled')) {
+                this.debugPreferenceRevision++;
+                this.debugLoggingPreference = changes.ctcDebugLoggingEnabled.newValue === true;
+                this.debugLoggingCheckbox.checked = this.debugLoggingPreference;
+            }
+        });
+
+        const revision = this.debugPreferenceRevision;
+        browser.storage.sync.get('ctcDebugLoggingEnabled').then(stored => {
+            if (revision === this.debugPreferenceRevision) {
+                this.debugLoggingPreference = stored.ctcDebugLoggingEnabled === true;
+                this.debugLoggingCheckbox.checked = this.debugLoggingPreference;
+                if (typeof setDebugLoggingEnabled === 'function') {
+                    setDebugLoggingEnabled(this.debugLoggingPreference);
+                }
+            }
+        }).catch(error => {
+            ctcConsole.error('Failed to load debug preference for options:', error);
+        });
     }
 
     async handleDebugLoggingToggle() {
@@ -77,18 +97,16 @@ class CtcOptions {
         const enabled = this.debugLoggingCheckbox.checked;
 
         try {
-            // Save to storage (this will trigger utils.js storage watcher in background context)
             await browser.storage.sync.set({ ctcDebugLoggingEnabled: enabled });
+            this.debugLoggingPreference = enabled;
 
-            // Update local context immediately
             if (typeof setDebugLoggingEnabled === 'function') {
                 setDebugLoggingEnabled(enabled);
             }
 
             ctcConsole.info(`Debug logging ${enabled ? 'enabled' : 'disabled'} via options UI.`);
         } catch (error) {
-            // Revert checkbox on error
-            this.debugLoggingCheckbox.checked = !enabled;
+            this.debugLoggingCheckbox.checked = this.debugLoggingPreference;
             this.showValidationMessage('Failed to update debug logging preference.', 'error');
             ctcConsole.error('Failed to save debug preference:', error);
         }

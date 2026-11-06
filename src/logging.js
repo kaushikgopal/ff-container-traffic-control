@@ -30,6 +30,7 @@
 
 const CTC_DEBUG_STORAGE_KEY = "ctcDebugLoggingEnabled";
 let debugLoggingEnabled = false;
+let debugPreferenceRevision = 0;
 
 /**
  * Creates bound console methods with CTC formatting and debug control
@@ -129,7 +130,11 @@ async function initializeDebugLoggingPreference() {
     return;
   } else {
     try {
+      const revision = debugPreferenceRevision;
       const stored = await browser.storage.sync.get(CTC_DEBUG_STORAGE_KEY);
+      if (revision !== debugPreferenceRevision) {
+        return;
+      }
       const storedValue = stored?.[CTC_DEBUG_STORAGE_KEY];
       setDebugLoggingEnabled(storedValue === true);
       if (storedValue === true) {
@@ -159,6 +164,7 @@ function watchDebugLoggingPreferenceChanges() {
       } else {
         if (Object.prototype.hasOwnProperty.call(changes, CTC_DEBUG_STORAGE_KEY)) {
           const { newValue } = changes[CTC_DEBUG_STORAGE_KEY];
+          debugPreferenceRevision++;
           setDebugLoggingEnabled(newValue === true);
           if (newValue === true) {
             ctcConsole.info("Debug logging enabled by user preference change.");

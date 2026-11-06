@@ -221,6 +221,15 @@ function createOptionsHarness({
     options,
     storageData,
     writes,
+    changeStorage(values) {
+      const changes = {};
+      for (const [key, value] of Object.entries(values)) {
+        const oldValue = storageData[key];
+        storageData[key] = value;
+        changes[key] = { oldValue, newValue: value };
+      }
+      changeListeners.forEach(listener => listener(changes, 'sync'));
+    },
     dispatchStorageChange(changes, area = 'sync') {
       changeListeners.forEach(listener => listener(changes, area));
     },

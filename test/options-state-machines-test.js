@@ -169,6 +169,40 @@ test('ISSUE-10 rejects an invalid wrapped regular expression on Save and Import'
   assert.strictEqual(harness.writes.length, 0);
 });
 
+test('ISSUE-12 initial preference read updates the checkbox and local flag', async () => {
+  const initialRead = deferred();
+  const harness = createOptionsHarness({ debugRead: initialRead });
+  initialRead.resolve({ ctcDebugLoggingEnabled: true });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.strictEqual(harness.elements.debugLoggingCheckbox.checked, true);
+  assert.strictEqual(harness.evaluate('isDebugLoggingEnabled()'), true);
+});
+
+test('ISSUE-12 preference changes override delayed reads and failed toggles restore committed state', async () => {
+  const initialRead = deferred();
+  let failWrite = false;
+  const harness = createOptionsHarness({
+    debugRead: initialRead,
+    write: async () => {
+      if (failWrite) throw new Error('storage unavailable');
+    },
+  });
+  harness.changeStorage({ ctcDebugLoggingEnabled: true });
+  initialRead.resolve({ ctcDebugLoggingEnabled: false });
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.strictEqual(harness.elements.debugLoggingCheckbox.checked, true);
+  assert.strictEqual(harness.evaluate('isDebugLoggingEnabled()'), true);
+  assert.strictEqual(harness.storageData.ctcDebugLoggingEnabled, true);
+  harness.elements.debugLoggingCheckbox.checked = false;
+  failWrite = true;
+  await harness.options.handleDebugLoggingToggle();
+  assert.strictEqual(harness.elements.debugLoggingCheckbox.checked, true);
+  assert.strictEqual(harness.evaluate('isDebugLoggingEnabled()'), true);
+  assert.strictEqual(harness.storageData.ctcDebugLoggingEnabled, true);
+});
+
 (async () => {
   let failures = 0;
   for (const { name, run } of tests) {
