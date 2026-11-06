@@ -74,21 +74,29 @@ browser.contextualIdentities.onUpdated.addListener(() => {
 // MV3 RACE CONDITION FIX: Eager initialization at startup
 // PROBLEM: When script wakes from termination, webRequest fires before init completes
 // SOLUTION: Start initialization immediately, handleRequest() checks if ready
-ctcConsole.info("[Background] Initializing CtcRepo...");
 let initializationPromise = null;
 let isInitialized = false;
 
-// Start initialization immediately at startup
-initializationPromise = CtcRepo.initialize()
-  .then(() => {
-    isInitialized = true;
-    ctcConsole.info("[Background] CtcRepo initialization complete");
-  })
-  .catch((error) => {
-    ctcConsole.error("[Background] CtcRepo initialization failed:", error);
-    // Clear promise so next navigation attempt can retry
-    initializationPromise = null;
-  });
+function startInitialization() {
+  if (isInitialized) return Promise.resolve();
+  if (initializationPromise) return initializationPromise;
+
+  ctcConsole.info("[Background] Initializing CtcRepo...");
+  const attempt = CtcRepo.initialize()
+    .then(() => {
+      isInitialized = true;
+      ctcConsole.info("[Background] CtcRepo initialization complete");
+    })
+    .catch((error) => {
+      ctcConsole.error("[Background] CtcRepo initialization failed:", error);
+      if (initializationPromise === attempt) initializationPromise = null;
+    });
+  initializationPromise = attempt;
+  return attempt;
+}
+
+// Start initialization immediately at startup.
+startInitialization();
 
 // Track only redirect work that still depends on its source tab.
 // Completed requests leave no cooldown that can suppress a later navigation.
@@ -147,11 +155,11 @@ function removeReplacementTab(work) {
 async function handleRequest(details) {
   let sourceWork = null;
   try {
-    // Wait for startup initialization, but allow navigation after a timeout.
-    if (!isInitialized && initializationPromise) {
+    // Wait for initialization, but allow navigation after the existing timeout.
+    if (!isInitialized) {
       try {
         await Promise.race([
-          initializationPromise,
+          initializationPromise || startInitialization(),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error("Initialization timeout")), 500),
           ),
