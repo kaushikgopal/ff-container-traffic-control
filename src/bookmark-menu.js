@@ -101,6 +101,9 @@ browser.menus.onShown.addListener(async (info) => {
   }
 
   try {
+    if (menuRebuildPromise) {
+      await menuRebuildPromise;
+    }
     const [bookmark] = await browser.bookmarks.get(info.bookmarkId);
     // Folders don't have a url property - more reliable than checking type
     const isFolder = !bookmark.url;
@@ -108,11 +111,11 @@ browser.menus.onShown.addListener(async (info) => {
     ctcConsole.log(`Bookmark menu check: id=${info.bookmarkId}, url=${bookmark.url}, type=${bookmark.type}, isFolder=${isFolder}`);
 
     // Hide menu for single bookmarks (they already have container options)
-    browser.menus.update(BOOKMARK_MENU_ID, {
+    await browser.menus.update(BOOKMARK_MENU_ID, {
       visible: isFolder
     });
 
-    browser.menus.refresh();
+    await browser.menus.refresh();
   } catch (error) {
     ctcConsole.error("Failed to update bookmark menu visibility:", error);
   }

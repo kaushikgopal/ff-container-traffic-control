@@ -7,10 +7,12 @@ const PARENT_ID = "ctc-open-all-in-container";
 
 function createDeferred() {
   let resolve;
-  const promise = new Promise((resolvePromise) => {
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function createBrowser() {
@@ -24,8 +26,12 @@ function createBrowser() {
   };
   const failures = new Set();
   const logs = [];
+  const updateCalls = [];
+  let refreshCalls = 0;
   let containers = [];
   let nextQuery = null;
+  let nextUpdate = null;
+  let nextRefresh = null;
 
   function removeTree(id) {
     for (const [childId, item] of menus) {
@@ -67,15 +73,29 @@ function createBrowser() {
         removeTree(id);
         return Promise.resolve();
       },
-      update() {
+      update(id, properties) {
+        updateCalls.push({ id, ...properties });
+        if (nextUpdate) {
+          const pending = nextUpdate;
+          nextUpdate = null;
+          return pending.promise;
+        }
         return Promise.resolve();
       },
-      refresh() {},
+      refresh() {
+        refreshCalls += 1;
+        if (nextRefresh) {
+          const pending = nextRefresh;
+          nextRefresh = null;
+          return pending.promise;
+        }
+        return Promise.resolve();
+      },
       onShown: { addListener(listener) { listeners.onShown.push(listener); } },
       onClicked: { addListener(listener) { listeners.onClicked.push(listener); } }
     },
     bookmarks: {
-      get: async () => [],
+      get: async (id) => [{ id, title: "Folder" }],
       getChildren: async () => []
     },
     contextualIdentities: {
@@ -100,6 +120,8 @@ function createBrowser() {
     listeners,
     failures,
     logs,
+    updateCalls,
+    get refreshCalls() { return refreshCalls; },
     setContainers(value) { containers = value.slice(); },
     deferNextQuery() {
       nextQuery = createDeferred();
@@ -109,6 +131,14 @@ function createBrowser() {
         promise: deferred.promise,
         resolve() { deferred.resolve(snapshot); }
       };
+    },
+    deferNextMenuUpdate() {
+      nextUpdate = createDeferred();
+      return nextUpdate;
+    },
+    deferNextMenuRefresh() {
+      nextRefresh = createDeferred();
+      return nextRefresh;
     }
   };
 }
@@ -190,6 +220,68 @@ async function testOverlappingIdentityEventsUseLatestSnapshot() {
   assert.equal(vm.runInContext("containerMenuIds.length", context), 1);
 }
 
+async function testOnShownWaitsForRebuildAndMenuUpdates() {
+  const shared = createBrowser();
+  shared.setContainers([{ cookieStoreId: "firefox-container-1", name: "Old" }]);
+  loadContext(shared);
+  await drainTasks();
+
+  const delayedQuery = shared.deferNextQuery();
+  const rebuild = shared.listeners.onUpdated[0]();
+  await drainTasks();
+  const delayedUpdate = shared.deferNextMenuUpdate();
+  const delayedRefresh = shared.deferNextMenuRefresh();
+  const shown = shared.listeners.onShown[0]({
+    contexts: ["bookmark"],
+    bookmarkId: "folder"
+  });
+  let shownSettled = false;
+  shown.then(() => { shownSettled = true; });
+  await drainTasks();
+
+  assert.equal(shownSettled, false);
+  assert.equal(shared.updateCalls.length, 0);
+  delayedQuery.resolve();
+  await drainTasks();
+  assert.equal(shared.updateCalls.length, 1);
+  assert.equal(shared.refreshCalls, 0);
+  assert.equal(shownSettled, false);
+  delayedUpdate.resolve();
+  await drainTasks();
+  assert.equal(shared.refreshCalls, 1);
+  assert.equal(shownSettled, false);
+  delayedRefresh.resolve();
+  await Promise.all([rebuild, shown]);
+
+  assert.deepEqual(shared.updateCalls[0], { id: PARENT_ID, visible: true });
+  assert.equal(shownSettled, true);
+}
+
+async function testOnShownHandlesMenuUpdateFailure() {
+  const shared = createBrowser();
+  shared.setContainers([{ cookieStoreId: "firefox-container-1", name: "Work" }]);
+  loadContext(shared);
+  await drainTasks();
+  const delayedUpdate = shared.deferNextMenuUpdate();
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on("unhandledRejection", onUnhandled);
+
+  const shown = shared.listeners.onShown[0]({
+    contexts: ["bookmark"],
+    bookmarkId: "folder"
+  });
+  await drainTasks();
+  delayedUpdate.reject(new Error("menu update failed"));
+  await shown;
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off("unhandledRejection", onUnhandled);
+
+  assert.equal(unhandled.length, 0);
+  assert.equal(shared.logs.some((entry) =>
+    entry[0] === "Failed to update bookmark menu visibility:"), true);
+}
+
 async function testCreateCallbackErrorsDoNotRecordFailedChildren() {
   const shared = createBrowser();
   shared.setContainers([
@@ -210,6 +302,8 @@ async function main() {
   const tests = [
     ["startup removes persisted items for deleted identities", testStartupRemovesPersistedItemsForDeletedIdentities],
     ["overlapping identity events use the latest snapshot", testOverlappingIdentityEventsUseLatestSnapshot],
+    ["onShown waits for rebuild and menu updates", testOnShownWaitsForRebuildAndMenuUpdates],
+    ["onShown handles menu update failure", testOnShownHandlesMenuUpdateFailure],
     ["create callback errors do not record failed children", testCreateCallbackErrorsDoNotRecordFailedChildren]
   ];
 
