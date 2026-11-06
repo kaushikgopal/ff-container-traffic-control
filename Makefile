@@ -24,6 +24,7 @@ test:		## run all unit tests
 	@echo ""
 	@node test/rule-engine-test.js
 	@echo ""
+	@node test/bookmark-menu-test.js
 	@node test/test-compression-large-ruleset.js
 
 lint:		## validate extension code and manifest

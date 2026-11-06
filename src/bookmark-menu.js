@@ -4,39 +4,62 @@
 const BOOKMARK_MENU_ID = "ctc-open-all-in-container";
 const LAZY_LOAD_THRESHOLD = 10;
 
-// Track container menu item IDs for efficient updates
+// Track successfully created container menu item IDs.
 let containerMenuIds = [];
+let menuRebuildPromise = null;
+let menuRebuildRequested = false;
+
+function createMenuItem(item) {
+  return new Promise((resolve, reject) => {
+    browser.menus.create(item, () => {
+      const error = browser.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 // ============================================================================
 // MENU CREATION: Set up context menu structure on extension startup
 // ============================================================================
 
-function createBookmarkContextMenu() {
-  // Parent menu item - only shows on bookmark folders
-  browser.menus.create({
-    id: BOOKMARK_MENU_ID,
-    contexts: ["bookmark"],
-    title: "Open All in Container"
-  });
+async function createBookmarkContextMenu() {
+  // Removing the parent also removes its persisted descendants.
+  try {
+    await browser.menus.remove(BOOKMARK_MENU_ID);
+  } catch (error) {
+    // The parent may not exist on first startup.
+  }
+  containerMenuIds = [];
 
-  // "No Container" option at top
-  browser.menus.create({
-    id: "ctc-no-container",
-    parentId: BOOKMARK_MENU_ID,
-    contexts: ["bookmark"],
-    title: "No Container"
-  });
+  try {
+    await createMenuItem({
+      id: BOOKMARK_MENU_ID,
+      contexts: ["bookmark"],
+      title: "Open All in Container"
+    });
 
-  // Separator between "No Container" and actual containers
-  browser.menus.create({
-    id: "ctc-separator",
-    parentId: BOOKMARK_MENU_ID,
-    contexts: ["bookmark"],
-    type: "separator"
-  });
+    await createMenuItem({
+      id: "ctc-no-container",
+      parentId: BOOKMARK_MENU_ID,
+      contexts: ["bookmark"],
+      title: "No Container"
+    });
 
-  // Populate with available containers
-  populateContainerMenuItems();
+    await createMenuItem({
+      id: "ctc-separator",
+      parentId: BOOKMARK_MENU_ID,
+      contexts: ["bookmark"],
+      type: "separator"
+    });
+
+    await populateContainerMenuItems();
+  } catch (error) {
+    ctcConsole.error("Failed to create bookmark menu:", error);
+  }
 }
 
 // ============================================================================
@@ -48,16 +71,20 @@ async function populateContainerMenuItems() {
     const containers = await browser.contextualIdentities.query({});
 
     for (const container of containers) {
-      browser.menus.create({
-        id: container.cookieStoreId,
-        parentId: BOOKMARK_MENU_ID,
-        contexts: ["bookmark"],
-        title: container.name,
-        icons: {
-          16: `resource://usercontext-content/${container.icon}.svg`
-        }
-      });
-      containerMenuIds.push(container.cookieStoreId);
+      try {
+        await createMenuItem({
+          id: container.cookieStoreId,
+          parentId: BOOKMARK_MENU_ID,
+          contexts: ["bookmark"],
+          title: container.name,
+          icons: {
+            16: `resource://usercontext-content/${container.icon}.svg`
+          }
+        });
+        containerMenuIds.push(container.cookieStoreId);
+      } catch (error) {
+        ctcConsole.error("Failed to populate container menu:", error);
+      }
     }
   } catch (error) {
     ctcConsole.error("Failed to populate container menu:", error);
@@ -195,24 +222,24 @@ browser.contextualIdentities.onUpdated.addListener(async () => {
   await rebuildContainerMenuItems();
 });
 
-async function rebuildContainerMenuItems() {
-  // Remove existing container items
-  for (const id of containerMenuIds) {
-    try {
-      await browser.menus.remove(id);
-    } catch (e) {
-      // Item may already be removed
-    }
+function rebuildContainerMenuItems() {
+  menuRebuildRequested = true;
+  if (!menuRebuildPromise) {
+    menuRebuildPromise = (async () => {
+      while (menuRebuildRequested) {
+        menuRebuildRequested = false;
+        await createBookmarkContextMenu();
+      }
+    })().finally(() => {
+      menuRebuildPromise = null;
+    });
   }
-  containerMenuIds = [];
-
-  // Re-populate
-  await populateContainerMenuItems();
+  return menuRebuildPromise;
 }
 
 // ============================================================================
 // INITIALIZATION: Create menu on extension startup
 // ============================================================================
 
-createBookmarkContextMenu();
+rebuildContainerMenuItems();
 ctcConsole.info("[Bookmark Menu] Initialized");
