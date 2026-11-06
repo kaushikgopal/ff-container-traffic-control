@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { flushMicrotasks } = require('./browser-stub');
+const { deferred, flushMicrotasks } = require('./browser-stub');
 
 function createHarness({ identities = [], rules = [], tab = {} } = {}) {
   const listeners = {
@@ -17,6 +17,8 @@ function createHarness({ identities = [], rules = [], tab = {} } = {}) {
   const removedTabs = [];
   const logs = [];
   let currentIdentities = identities;
+  let pendingIdentityQuery = null;
+  let identityQueryCount = 0;
   const browser = {
     webRequest: { onBeforeRequest: { addListener(listener) { listeners.beforeRequest = listener; } } },
     storage: {
@@ -24,7 +26,15 @@ function createHarness({ identities = [], rules = [], tab = {} } = {}) {
       sync: { get: () => Promise.resolve({ ctcRules: rules }) },
     },
     contextualIdentities: {
-      query: () => Promise.resolve(currentIdentities),
+      query() {
+        identityQueryCount += 1;
+        if (pendingIdentityQuery) {
+          const query = pendingIdentityQuery;
+          pendingIdentityQuery = null;
+          return query.promise;
+        }
+        return Promise.resolve(currentIdentities);
+      },
       onCreated: { addListener(listener) { listeners.identityCreated.push(listener); } },
       onRemoved: { addListener(listener) { listeners.identityRemoved.push(listener); } },
       onUpdated: { addListener(listener) { listeners.identityUpdated.push(listener); } },
@@ -66,6 +76,11 @@ function createHarness({ identities = [], rules = [], tab = {} } = {}) {
     listeners,
     removedTabs,
     setIdentities(value) { currentIdentities = value; },
+    deferNextIdentityQuery() {
+      pendingIdentityQuery = deferred();
+      return pendingIdentityQuery;
+    },
+    get identityQueryCount() { return identityQueryCount; },
     request(details) { return listeners.beforeRequest({ method: 'GET', ...details }); },
   };
 }
@@ -123,6 +138,50 @@ async function testIdentityRenameRefreshesRepositoryMaps() {
   assert.equal(harness.context.CtcRepo.containerMap.get('New Name'), 'work-id');
 }
 
+async function testRenameDuringContainerQueryIsNotLost() {
+  const harness = createHarness({
+    identities: [{ name: 'Old Name', cookieStoreId: 'work-id' }],
+  });
+  await initialize(harness);
+  const queryCountBefore = harness.identityQueryCount;
+  const delayedQuery = harness.deferNextIdentityQuery();
+  harness.setIdentities([{ name: 'First Rename', cookieStoreId: 'work-id' }]);
+  harness.listeners.identityUpdated[0]({ cookieStoreId: 'work-id' });
+  harness.setIdentities([{ name: 'Final Name', cookieStoreId: 'work-id' }]);
+  harness.listeners.identityUpdated[0]({ cookieStoreId: 'work-id' });
+  delayedQuery.resolve([{ name: 'First Rename', cookieStoreId: 'work-id' }]);
+  await flushMicrotasks(20);
+
+  assert.equal(harness.identityQueryCount, queryCountBefore + 2);
+  assert.equal(harness.context.CtcRepo.containerMap.has('First Rename'), false);
+  assert.equal(harness.context.CtcRepo.containerMap.get('Final Name'), 'work-id');
+}
+
+async function testInvalidationRetriesAfterRejectedContainerQuery() {
+  const harness = createHarness({
+    identities: [{ name: 'Old Name', cookieStoreId: 'work-id' }],
+  });
+  await initialize(harness);
+  const queryCountBefore = harness.identityQueryCount;
+  const delayedQuery = harness.deferNextIdentityQuery();
+  harness.setIdentities([{ name: 'First Rename', cookieStoreId: 'work-id' }]);
+  harness.listeners.identityUpdated[0]({ cookieStoreId: 'work-id' });
+  harness.setIdentities([{ name: 'Final Name', cookieStoreId: 'work-id' }]);
+  harness.listeners.identityUpdated[0]({ cookieStoreId: 'work-id' });
+
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  delayedQuery.reject(new Error('identity query failed'));
+  await flushMicrotasks(20);
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', onUnhandled);
+
+  assert.equal(unhandled.length, 0);
+  assert.equal(harness.identityQueryCount, queryCountBefore + 2);
+  assert.equal(harness.context.CtcRepo.containerMap.get('Final Name'), 'work-id');
+}
+
 async function testReservedDefaultNameCannotReplaceDefaultStore() {
   const harness = createHarness({
     identities: [{ name: 'No Container', cookieStoreId: 'custom-default-name-id' }],
@@ -137,6 +196,8 @@ async function main() {
     ['removed candidate falls through to live container', testRemovedCandidateFallsThroughToLiveContainer],
     ['duplicate name keeps existing store', testDuplicateNameKeepsExistingStore],
     ['identity rename refreshes repository maps', testIdentityRenameRefreshesRepositoryMaps],
+    ['rename during container query is not lost', testRenameDuringContainerQueryIsNotLost],
+    ['invalidation retries after rejected container query', testInvalidationRetriesAfterRejectedContainerQuery],
     ['reserved default name cannot replace default store', testReservedDefaultNameCannotReplaceDefaultStore],
   ];
   let failures = 0;

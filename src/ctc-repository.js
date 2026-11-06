@@ -57,6 +57,7 @@ class CtcRepository {
     #loadingContainersPromise = null;
     #loadingRulesPromise = null;
     #reloadRulesRequested = false;
+    #reloadContainersRequested = false;
     #initializationFailed = false;
 
     /**
@@ -75,23 +76,20 @@ class CtcRepository {
         //    Event 2: onRemoved fires → calls loadContainers()
         //    WITHOUT PROTECTION: Both start parallel loads → race condition
         //
-        // SOLUTION: Store in-flight promise, reuse for concurrent callers
+        // SOLUTION: Coalesce concurrent calls and retain one follow-up load
         //    Call 1: No promise exists → create new load → store promise
-        //    Call 2: Promise exists → wait for same promise → no new load
-        //    Result: Single load, all callers get same consistent data
+        //    Call 2: Promise exists → request follow-up load → wait for result
+        //    Result: Queries stay serial and no container change is lost
         // ====================================================================
         if (this.#loadingContainersPromise) {
+            this.#reloadContainersRequested = true;
             return this.#loadingContainersPromise;
         }
 
-        // ATOMIC OPERATION: Create promise for this load cycle
-        // CRITICAL: Assigned BEFORE any await to catch concurrent calls
-        this.#loadingContainersPromise = this.#doLoadContainers()
+        this.#loadingContainersPromise = this.#loadContainersAndDrain()
             .finally(() => {
-                // CLEANUP: Always clear promise when done (success or failure)
-                // CRITICAL: Allows future loads after errors or completion
-                // TIMING: Cleared after load completes, before next call
                 this.#loadingContainersPromise = null;
+                this.#reloadContainersRequested = false;
             });
 
         try {
@@ -101,6 +99,25 @@ class CtcRepository {
         } catch (error) {
             if (onError) onError(error);
             else throw error;
+        }
+    }
+
+    async #loadContainersAndDrain() {
+        let result;
+        while (true) {
+            this.#reloadContainersRequested = false;
+            let loadError;
+            let loadFailed = false;
+            try {
+                result = await this.#doLoadContainers();
+            } catch (error) {
+                loadError = error;
+                loadFailed = true;
+            }
+            if (!this.#reloadContainersRequested) {
+                if (loadFailed) throw loadError;
+                return result;
+            }
         }
     }
 
