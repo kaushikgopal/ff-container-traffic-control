@@ -101,8 +101,22 @@ startInitialization();
 // Track only redirect work that still depends on its source tab.
 // Completed requests leave no cooldown that can suppress a later navigation.
 const pendingRedirects = new Map();
+const redirectChains = new Map();
+const MAX_REDIRECT_CHAIN_HOPS = 5;
+const REDIRECT_CHAIN_WINDOW_MS = 10000;
+
+function getRedirectChain(tabId) {
+  const chain = redirectChains.get(tabId);
+  if (!chain) return null;
+  if (Date.now() - chain.startedAt > REDIRECT_CHAIN_WINDOW_MS) {
+    redirectChains.delete(tabId);
+    return null;
+  }
+  return chain;
+}
 
 browser.tabs.onRemoved.addListener((tabId) => {
+  redirectChains.delete(tabId);
   const workItems = pendingRedirects.get(tabId);
   if (!workItems) return;
 
@@ -140,6 +154,7 @@ function removeReplacementTab(work) {
 
   const replacementTabId = work.replacementTabId;
   work.replacementTabId = null;
+  redirectChains.delete(replacementTabId);
   work.replacementRemovalPromise = browser.tabs.remove(replacementTabId).catch(
     (error) => {
       ctcConsole.error(
@@ -154,6 +169,7 @@ function removeReplacementTab(work) {
 // PUBLIC: Main request handler (used by webRequest listener)
 async function handleRequest(details) {
   let sourceWork = null;
+  let redirectChain = null;
   try {
     // Wait for initialization, but allow navigation after the existing timeout.
     if (!isInitialized) {
@@ -175,9 +191,11 @@ async function handleRequest(details) {
     ctcConsole.log(`Received request for ${details.url}`);
 
     if (isPrivilegedURL(details.url) || details.tabId === -1) {
+      if (details.tabId >= 0) redirectChains.delete(details.tabId);
       return {};
     }
 
+    redirectChain = getRedirectChain(details.tabId);
     if (details.tabId >= 0) {
       sourceWork = registerSourceWork(details.tabId);
     }
@@ -204,6 +222,7 @@ async function handleRequest(details) {
     );
 
     if (currentCookieStoreId === targetCookieStoreId) {
+      redirectChains.delete(details.tabId);
       return {};
     }
 
@@ -212,11 +231,24 @@ async function handleRequest(details) {
     }
 
     if (details.method !== "GET") {
+      redirectChains.delete(details.tabId);
       ctcConsole.warn(
         `Skipping container switch for ${details.method} request to ${details.url}`,
       );
       return {};
     }
+
+    if (redirectChain && redirectChain.hops >= MAX_REDIRECT_CHAIN_HOPS) {
+      ctcConsole.warn(
+        `Stopping repeated container redirect chain for tab ${details.tabId}`,
+      );
+      return {};
+    }
+
+    const nextRedirectChain = {
+      hops: (redirectChain?.hops || 0) + 1,
+      startedAt: redirectChain?.startedAt || Date.now(),
+    };
 
     ctcConsole.info(
       `Container switch: ${currentContainerName} → ${targetContainerName} for ${details.url}`,
@@ -228,6 +260,7 @@ async function handleRequest(details) {
       active: tabWasActive,
       index: details.tabId >= 0 ? undefined : 0,
     });
+    redirectChains.set(newTab.id, nextRedirectChain);
     if (sourceWork) {
       sourceWork.replacementTabId = newTab.id;
       if (sourceWork.sourceClosed) {
@@ -245,6 +278,7 @@ async function handleRequest(details) {
         return {};
       }
       sourceWork.replacementTabId = null;
+      redirectChains.delete(details.tabId);
     }
 
     return { cancel: true };

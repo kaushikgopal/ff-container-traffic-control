@@ -32,6 +32,45 @@ test('different URLs in one container pair route independently', async () => {
   assert.deepEqual(results.map((result) => result.cancel), [true, true]);
 });
 
+test('a cross-container redirect cycle stops after a bounded replacement chain', async () => {
+  const stores = new Map([[1, 'work-id']]);
+  const harness = createBackgroundHarness({
+    rules: [
+      { containerName: 'Work', action: 'open', urlPattern: 'work.example' },
+      { containerName: 'Personal', action: 'open', urlPattern: 'personal.example' },
+    ],
+    getTab(tabId) {
+      return Promise.resolve({ cookieStoreId: stores.get(tabId), active: true });
+    },
+    createTab(options, call) {
+      const id = 100 + call;
+      stores.set(id, options.cookieStoreId);
+      return Promise.resolve({ id });
+    },
+  });
+  let tabId = 1;
+  let result;
+
+  for (let requestCount = 0; requestCount < 12; requestCount += 1) {
+    const sourceTabId = tabId;
+    const currentStore = stores.get(tabId);
+    const url = currentStore === 'work-id'
+      ? 'https://personal.example/redirect'
+      : 'https://work.example/redirect';
+    result = await harness.request({ tabId, url, method: 'GET' });
+    if (!result.cancel) break;
+
+    tabId = 100 + harness.createCalls.length;
+    harness.removeSourceTab(sourceTabId);
+  }
+
+  assert.equal(harness.createCalls.length <= 5, true, 'redirect chain must stop after a small hop limit');
+  assert.equal(Object.keys(result).length, 0, 'the over-limit request must stay in its current tab');
+  assert.equal(harness.logs.some(({ level, args }) =>
+    level === 'warn' && args.some((message) => String(message).includes('redirect chain'))), true);
+});
+
+
 test('failed tab creation does not suppress a same-tab retry', async () => {
   const harness = createBackgroundHarness({
     createTab(_details, call) {
