@@ -125,6 +125,18 @@ test('ISSUE-6 retains a failed draft and allows a deliberate retry', async () =>
   assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'saved.test');
 });
 
+test('ISSUE-9 saves and reloads an intentional empty rule set', async () => {
+  const harness = createOptionsHarness({ rules: [{ containerName: 'Work', action: 'open', urlPattern: 'old.test', highPriority: false }] });
+  harness.elements.rulesTableBody.querySelector('.container-type-select').value = 'no-rule';
+  await harness.options.saveRulesFromUi();
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(harness.writes.length, 2);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(harness.storageData.ctcRules)), []);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(harness.options.rules)), []);
+  const reloaded = createOptionsHarness({ rules: harness.storageData.ctcRules });
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(reloaded.options.rules)), []);
+});
+
 (async () => {
   let failures = 0;
   for (const { name, run } of tests) {

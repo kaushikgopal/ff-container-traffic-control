@@ -530,11 +530,6 @@ class CtcOptions {
             // HARVEST: Extract rules from DOM table
             const rules = this.collectRulesFromTable();
 
-            // EDGE CASE: Empty table - nothing to save
-            if (rules.length === 0) {
-                this.showValidationMessage('No valid rules to save.', 'warning');
-                return;
-            }
 
             // SAFETY CHECK: Run comprehensive validation
             const { errors, warnings } = this.validateAllRules(rules);
