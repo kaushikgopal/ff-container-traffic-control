@@ -209,6 +209,7 @@ function createOptionsHarness({
   };
   runSource('src/logging.js');
   runSource('src/pattern-matching.js');
+  runSource('src/rule-engine.js');
   runSource('src/options.js');
   const Options = vm.runInContext('CtcOptions', context);
   const options = new Options();

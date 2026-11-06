@@ -44,6 +44,18 @@ test('ISSUE-3 preserves imported records without legacy highPriority', async () 
   assert.strictEqual(Object.prototype.hasOwnProperty.call(harness.storageData.ctcRules[0], 'highPriority'), false);
 });
 
+test('ISSUE-5 unchanged grouped save preserves rule precedence and ignores property order', async () => {
+  const rules = JSON.parse('[{"containerName":"A","action":"open","urlPattern":"other.test","highPriority":false},{"urlPattern":"shared.test","highPriority":false,"action":"open","containerName":"B"},{"action":"open","containerName":"A","highPriority":false,"urlPattern":"shared.test"}]');
+  const harness = createOptionsHarness({ containers: [{ name: 'A' }, { name: 'B' }], rules });
+  const collected = harness.options.collectRulesFromTable();
+  harness.context.rulesUnderTest = collected;
+  assert.strictEqual(harness.evaluate('evaluateContainerForUrl("shared.test", "No Container", rulesUnderTest, new Map([["A", 1], ["B", 2]]))'), 'B');
+  harness.options.exportRules();
+  assert.strictEqual(harness.elements.exportOutput.style.display, 'block');
+  await harness.options.saveRulesFromUi();
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(harness.storageData.ctcRules)), rules);
+});
+
 (async () => {
   let failures = 0;
   for (const { name, run } of tests) {

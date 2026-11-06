@@ -176,6 +176,7 @@ class CtcOptions {
         if (existingRules.length > 0) {
             existingRules.forEach(rule => {
                 const urlRow = this.createUrlPatternRow(rule.urlPattern, rule.highPriority, containerName);
+                urlRow.dataset.ruleIndex = this.rules.indexOf(rule);
                 containerGroup.appendChild(urlRow);
             });
         } else if (containerType !== 'no-rule') {
@@ -354,7 +355,9 @@ class CtcOptions {
     }
 
     collectRulesFromTable() {
-        const rules = [];
+        const indexedRules = [];
+        const newRules = [];
+        let newRuleOrder = 0;
 
         // Collect rules from all container groups
         const containerGroups = this.rulesTableBody.querySelectorAll('.container-group');
@@ -379,17 +382,24 @@ class CtcOptions {
 
                 // Only include rules with valid URL patterns
                 if (urlPattern) {
-                    rules.push({
+                    const rule = {
                         containerName,
                         action,
                         urlPattern,
                         highPriority
-                    });
+                    };
+                    if (urlRow.dataset.ruleIndex !== undefined) {
+                        indexedRules.push({ index: Number(urlRow.dataset.ruleIndex), rule });
+                    } else {
+                        newRules.push({ order: newRuleOrder++, rule });
+                    }
                 }
             });
         });
 
-        return rules;
+        indexedRules.sort((a, b) => a.index - b.index);
+        newRules.sort((a, b) => a.order - b.order);
+        return [...indexedRules, ...newRules].map(entry => entry.rule);
     }
 
     // VALIDATION ENGINE: Comprehensive rule safety checks
@@ -575,10 +585,15 @@ class CtcOptions {
 
             // CONSISTENCY CHECK: Compare current UI state with saved rules
             // PURPOSE: Prevent exporting unsaved/unvalidated rules
-            const currentRulesJson = JSON.stringify(currentRules);
-            const savedRulesJson = JSON.stringify(this.rules);
+            const matchesSavedRules = currentRules.length === this.rules.length && currentRules.every((rule, index) => {
+                const savedRule = this.rules[index];
+                return rule.containerName === savedRule.containerName &&
+                    rule.action === savedRule.action &&
+                    rule.urlPattern === savedRule.urlPattern &&
+                    rule.highPriority === (savedRule.highPriority === true);
+            });
 
-            if (currentRulesJson !== savedRulesJson) {
+            if (!matchesSavedRules) {
                 this.showValidationMessage('Please save rules first before exporting.', 'error');
                 return;
             }
