@@ -13,20 +13,28 @@ jobs:
     runs-on: ubuntu-latest
     environment: amo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm install --global web-ext@10
 
-      - name: Verify tag matches manifest version
+      - name: Verify tag, manifest version, and changelog entry
         run: |
           version=$(node -p "require('./manifest.json').version")
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME does not match manifest version $version"
             exit 1
           fi
-          echo "VERSION=$version" >> "$GITHUB_ENV"
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          if ! grep -q "[^[:space:]]" "$RUNNER_TEMP/release-notes.md"; then
+            echo "CHANGELOG.md has no entry for $version"
+            exit 1
+          fi
 
       - run: make test
       - run: make lint
@@ -48,10 +56,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          awk -v v="$VERSION" '
-            index($0, "## [" v "]") == 1 { found = 1; next }
-            found && /^## \[/ { exit }
-            found { print }
-          ' CHANGELOG.md > release-notes.md
           gh release create "$GITHUB_REF_NAME" web-ext-artifacts/*.zip \
-            --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+            --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md"

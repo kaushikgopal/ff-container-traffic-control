@@ -44,9 +44,15 @@ run:		## run extension in Firefox for development
 release:		## tag the manifest version and push it to start the AMO release workflow
 	@test "$$(git branch --show-current)" = master || { echo "Run from master"; exit 1; }
 	@test -z "$$(git status --porcelain --untracked-files=no)" || { echo "Commit changes first"; exit 1; }
+	@git fetch --quiet --tags origin
+	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/master)" || { echo "Push master and wait for CI first"; exit 1; }
 	@version=$$(node -p "require('./manifest.json').version"); \
+	! git rev-parse --quiet --verify "refs/tags/v$$version" >/dev/null || { echo "Tag v$$version exists; bump the version in manifest.json"; exit 1; }; \
+	grep -q "^## \[$$version\]" CHANGELOG.md || { echo "Add a CHANGELOG.md entry for $$version"; exit 1; }; \
+	ci=$$(gh run list --workflow CI --commit "$$(git rev-parse HEAD)" --json conclusion --jq '.[0].conclusion'); \
+	test "$$ci" = success || { echo "CI for HEAD is '$${ci:-missing}', not success"; exit 1; }; \
 	git tag -a "v$$version" -m "Release $$version" && \
-	git push origin master "v$$version"
+	git push origin "v$$version"
 
 clean:		## remove build artifacts
 	@echo "🧹 Cleaning build artifacts..."
