@@ -211,6 +211,13 @@ async function handleRequest(details) {
       return {};
     }
 
+    if (details.method !== "GET") {
+      ctcConsole.warn(
+        `Skipping container switch for ${details.method} request to ${details.url}`,
+      );
+      return {};
+    }
+
     ctcConsole.info(
       `Container switch: ${currentContainerName} → ${targetContainerName} for ${details.url}`,
     );

@@ -138,7 +138,7 @@ function createBackgroundHarness(options = {}) {
     removeCalls,
     timers,
     request(details) {
-      return listeners.beforeRequest(details);
+      return listeners.beforeRequest({ method: 'GET', ...details });
     },
     removeSourceTab(tabId) {
       for (const listener of listeners.tabRemoved) listener(tabId);

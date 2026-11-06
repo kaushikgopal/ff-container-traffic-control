@@ -29,6 +29,7 @@ test:		## run all unit tests
 	@node test/repository-issue-2-test.js
 	@node test/background-issue-4-test.js
 	@node test/background-issue-7-test.js
+	@node test/background-issue-8-test.js
 	@node test/test-compression-large-ruleset.js
 
 lint:		## validate extension code and manifest
