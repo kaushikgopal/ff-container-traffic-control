@@ -32,6 +32,7 @@ class CtcOptions {
         // STATE: Core data structures that mirror background script
         this.containers = [];  // Available Firefox containers
         this.rules = [];      // User-defined routing rules
+        this.savingRules = false;
 
         // DOM REFERENCES: Critical UI elements
         this.rulesTableBody = document.getElementById('rulesTableBody');
@@ -504,10 +505,20 @@ class CtcOptions {
     // PERSIST: Low-level storage operation (private)
     // Encodes and saves rules to browser.storage.sync
     async #saveRules(rules) {
-        const encodedRules = await encodeRulesForStorage(rules);
-        ctcConsole.log("saving to browser.storage.sync");
-        await browser.storage.sync.set({ ctcRules: encodedRules });
-        this.rules = rules;
+        if (this.savingRules) {
+            return false;
+        }
+        this.savingRules = true;
+
+        try {
+            const encodedRules = await encodeRulesForStorage(rules);
+            ctcConsole.log("saving to browser.storage.sync");
+            await browser.storage.sync.set({ ctcRules: encodedRules });
+            this.rules = rules;
+            return true;
+        } finally {
+            this.savingRules = false;
+        }
     }
 
     // COMMIT: Save user rules from UI to extension storage
@@ -546,7 +557,10 @@ class CtcOptions {
 
             // PERSIST: Write rules to Firefox sync storage
             // CRITICAL: This triggers background script to reload rules
-            await this.#saveRules(rules);
+            if (!await this.#saveRules(rules)) {
+                this.showValidationMessage('Another rule save is in progress. Please try again.', 'warning');
+                return;
+            }
 
             // SUCCESS FEEDBACK: Confirm save to user
             const successMessage = `${rules.length} rules saved successfully`;
@@ -669,7 +683,10 @@ class CtcOptions {
             ctcConsole.log(`validated ${importedRules.length} rules`);
 
             // COMMIT: Replace all rules in storage
-            await this.#saveRules(importedRules);
+            if (!await this.#saveRules(importedRules)) {
+                this.showValidationMessage('Another rule save is in progress. Please try again.', 'warning');
+                return;
+            }
 
             ctcConsole.log(`saved and imported ${importedRules.length} rules`);
 

@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { createOptionsHarness } = require('./options-stub');
+const { createOptionsHarness, deferred } = require('./options-stub');
 
 const tests = [];
 function test(name, run) {
@@ -54,6 +54,75 @@ test('ISSUE-5 unchanged grouped save preserves rule precedence and ignores prope
   assert.strictEqual(harness.elements.exportOutput.style.display, 'block');
   await harness.options.saveRulesFromUi();
   assert.deepStrictEqual(JSON.parse(JSON.stringify(harness.storageData.ctcRules)), rules);
+});
+
+test('ISSUE-6 prevents overlapping Save and Import commits', async () => {
+  const firstEncode = deferred();
+  let encodeCalls = 0;
+  const initialRule = { containerName: 'Work', action: 'open', urlPattern: 'old.test', highPriority: false };
+  const harness = createOptionsHarness({
+    rules: [initialRule],
+    encode: rules => {
+      encodeCalls++;
+      return encodeCalls === 1 ? firstEncode.promise : Promise.resolve(rules);
+    },
+  });
+  harness.elements.rulesTableBody.querySelector('.url-pattern-input').value = 'saved.test';
+  const savePromise = harness.options.saveRulesFromUi();
+  harness.elements.importJsonInput.value = JSON.stringify([{ ...initialRule, urlPattern: 'imported.test' }]);
+  await harness.options.saveRulesFromImport();
+  assert.strictEqual(encodeCalls, 1);
+  assert.strictEqual(harness.writes.length, 0);
+  firstEncode.resolve([{ ...initialRule, urlPattern: 'saved.test' }]);
+  await savePromise;
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'saved.test');
+  assert.strictEqual(harness.elements.importJsonInput.value.includes('imported.test'), true);
+  await harness.options.saveRulesFromImport();
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'imported.test');
+  assert.strictEqual(harness.elements.importJsonInput.value, '');
+});
+
+test('ISSUE-6 prevents overlapping Save operations from committing an older snapshot last', async () => {
+  const firstEncode = deferred();
+  let encodeCalls = 0;
+  const rule = { containerName: 'Work', action: 'open', urlPattern: 'old.test', highPriority: false };
+  const harness = createOptionsHarness({
+    rules: [rule],
+    encode: rules => {
+      encodeCalls++;
+      return encodeCalls === 1 ? firstEncode.promise : Promise.resolve(rules);
+    },
+  });
+  const input = harness.elements.rulesTableBody.querySelector('.url-pattern-input');
+  input.value = 'first.test';
+  const firstSave = harness.options.saveRulesFromUi();
+  input.value = 'second.test';
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(encodeCalls, 1);
+  firstEncode.resolve([{ ...rule, urlPattern: 'first.test' }]);
+  await firstSave;
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'first.test');
+  assert.strictEqual(input.value, 'second.test');
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'second.test');
+});
+
+test('ISSUE-6 retains a failed draft and allows a deliberate retry', async () => {
+  let failWrite = true;
+  const rule = { containerName: 'Work', action: 'open', urlPattern: 'saved.test', highPriority: false };
+  const harness = createOptionsHarness({
+    rules: [{ ...rule, urlPattern: 'old.test' }],
+    write: async () => {
+      if (failWrite) throw new Error('storage unavailable');
+    },
+  });
+  harness.elements.rulesTableBody.querySelector('.url-pattern-input').value = rule.urlPattern;
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'old.test');
+  assert.strictEqual(harness.options.rules[0].urlPattern, 'old.test');
+  failWrite = false;
+  await harness.options.saveRulesFromUi();
+  assert.strictEqual(harness.storageData.ctcRules[0].urlPattern, 'saved.test');
 });
 
 (async () => {
