@@ -66,7 +66,7 @@ function createHarness({ identities = [], rules = [], tab = {} } = {}) {
     listeners,
     removedTabs,
     setIdentities(value) { currentIdentities = value; },
-    request(details) { return listeners.beforeRequest(details); },
+    request(details) { return listeners.beforeRequest({ method: 'GET', ...details }); },
   };
 }
 
