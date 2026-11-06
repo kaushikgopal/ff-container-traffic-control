@@ -13,12 +13,15 @@ make build    # Build extension package (default)
 make test     # Run rule engine unit tests (test/rule-engine-test.js)
 make lint     # Validate extension code and manifest
 make run      # Run extension in Firefox for development
+make release  # Tag the manifest version; CI submits it to AMO
 make clean    # Remove build artifacts
 
 # Manual testing alternative: Firefox → about:debugging → "Load Temporary Add-on" → select manifest.json
 ```
 
 **Critical**: Always run `make lint` after changes to ensure extension validity.
+
+**Releases**: Follow the "Releasing" section in [README.md](README.md). Never upload to AMO by hand or run `web-ext sign` locally. Bump `manifest.json` and `CHANGELOG.md` together, push `master`, wait for CI, then run `make release`. Pushing and tagging need the maintainer's approval.
 
 ## Architecture Overview
 

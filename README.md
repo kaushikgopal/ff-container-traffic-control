@@ -108,22 +108,45 @@ Tests cover pattern matching, rule evaluation, container switching, priority han
 
 ## Releasing
 
-GitHub Actions runs `make test` and `make lint` on every push to `master` and on every pull request. The release workflow (`.github/workflows/release.yml`) runs when a `v<version>` tag is pushed. It checks that the tag matches `manifest.json`, then runs the tests, builds the package, submits it to addons.mozilla.org on the listed channel, and creates a GitHub release with the matching `CHANGELOG.md` notes.
+Releases are automated with GitHub Actions. You never upload a package to addons.mozilla.org (AMO) by hand.
 
-One-time setup:
+- **CI** (`.github/workflows/ci.yml`) runs `make test` and `make lint` on every push to `master` and on every pull request.
+- **Release** (`.github/workflows/release.yml`) runs when a `v<version>` tag is pushed. It checks that the tag matches `manifest.json` and that `CHANGELOG.md` has an entry for that version. Then it runs the tests and lint, builds the package, and submits it to AMO on the listed channel. Last, it creates a GitHub release with the changelog entry and the built zip.
+- The workflow does not wait for AMO review. Firefox users get the update after Mozilla approves it.
 
-1. Create AMO API credentials at https://addons.mozilla.org/developers/addon/api/key/.
-2. In the GitHub repository settings, create an environment named `amo`.
-3. Add the secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` to that environment.
+### Release a new version
 
-Each release:
+1. Pick the next version. The format is `YY.M.N`: two-digit year, month, and release number in that month. Example: the first release in November 2026 is `26.11.1`.
+2. Set `version` in `manifest.json`.
+3. Add a `## [<version>] - <short title>` entry at the top of `CHANGELOG.md`. List each change as `- bug fix: ...` or `- feature: ...`.
+4. Commit both files on `master` as `Release version <version>`.
+5. Push `master`: `git push origin master`.
+6. Wait for the CI run to pass: `gh run watch`.
+7. Run `make release`.
+8. Watch the release run: `gh run watch`.
+9. Check the review status at https://addons.mozilla.org/en-US/developers/addon/ctc/versions.
 
-1. Update `version` in `manifest.json` and add a `CHANGELOG.md` entry.
-2. Commit both files on `master`.
-3. Run `make release`.
+`make release` refuses to tag unless all of these are true:
 
-AMO review then runs as normal. The workflow does not wait for approval.
+- You are on `master` with no uncommitted changes to tracked files.
+- Local `master` matches `origin/master`.
+- The tag `v<version>` does not exist yet.
+- `CHANGELOG.md` has an entry for the version.
+- The CI run for the current commit passed.
 
+If the release run fails before the AMO submission, fix the cause, then delete the tag on GitHub and locally (`git push origin :v<version>` and `git tag -d v<version>`). Then run `make release` again. If AMO already accepted the version, bump the version instead. AMO never accepts the same version number twice.
+
+### One-time setup
+
+This setup is already done for this repository. Repeat it only if you rotate the AMO credentials.
+
+1. Sign in at https://addons.mozilla.org/developers/addon/api/key/ and generate new credentials.
+2. Create the GitHub environment `amo` (once): `gh api -X PUT repos/kaushikgopal/ff-container-traffic-control/environments/amo`.
+3. Run `gh secret set AMO_JWT_ISSUER --env amo -R kaushikgopal/ff-container-traffic-control`, then paste the JWT issuer at the prompt.
+4. Run `gh secret set AMO_JWT_SECRET --env amo -R kaushikgopal/ff-container-traffic-control`, then paste the JWT secret at the prompt.
+5. Check both secrets: `gh secret list --env amo -R kaushikgopal/ff-container-traffic-control`.
+
+NOTE: Paste secrets at the `gh` prompt. Do not pass them with `--body`, because the shell then saves them in its history.
 
 ## Changelog
 
